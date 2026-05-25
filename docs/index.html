@@ -857,8 +857,8 @@ function drawEdges() {
       line.setAttribute('x2', isFrom ? ex : sx);
       line.setAttribute('y2', isFrom ? ey : sy);
       line.setAttribute('stroke', fromCol);
-      line.setAttribute('stroke-width', edge.optional ? '1.5' : '2.5');
-      line.setAttribute('opacity', edge.optional ? '0.35' : '0.55');
+      line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('opacity', '0.4');
       if (edge.optional) line.setAttribute('stroke-dasharray', '8,5');
       line.setAttribute('marker-end', `url(#${markerMap[fromCol]})`);
       svg.appendChild(line);
