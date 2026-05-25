@@ -347,7 +347,7 @@
 <div class="container">
 
   <h1 class="page-title">How It Works</h1>
-  <p class="page-subtitle">5 specialized agents, orchestrated by skill commands. Drag the nodes around. Click to inspect. Switch skills to see different data flows.</p>
+  <p class="page-subtitle">You talk to one concierge skill (<code>/telos</code>). It orchestrates four specialist subagents and a deterministic registry script. Drag the nodes around, click to inspect, switch skills to see how the work flows.</p>
 
   <div class="graph-section">
     <h2>Agent Graph</h2>
@@ -414,6 +414,22 @@
 
   <div class="docs-section">
     <h2>Skills Reference</h2>
+    <div class="skill-card">
+      <div class="skill-header">
+        <span class="skill-name">/telos</span>
+        <div class="skill-agents">
+          <span class="agent-pill" style="background:#eef2ff;color:#3949ab;">Concierge</span>
+        </div>
+      </div>
+      <p class="skill-desc">The front door. Describe what you want in plain language and Telos routes you to the right step and walks you through it. Beginners start here; power users can call the commands below directly — same engine underneath.</p>
+      <div class="usage-block">
+        <div class="usage-label">Usage</div>
+        <div class="usage-code">
+          /telos<br>
+          <span class="comment"># "sketch a check-in screen" &middot; "is this flow good for retention?" &middot; "show my hub"</span>
+        </div>
+      </div>
+    </div>
     <div class="skill-card">
       <div class="skill-header">
         <span class="skill-name">/telos-setup</span>
@@ -516,12 +532,13 @@
   </div>
 
   <div class="docs-section">
-    <h2>Agents</h2>
+    <h2>Agents &amp; Registry</h2>
+    <p style="color:#888;font-size:14px;margin:-8px 0 18px;">Four specialist subagents do the judgment work in isolation. The registry is a deterministic script — judgment goes to the models, mechanics go to code.</p>
     <div class="agents-grid">
       <div class="agent-card">
         <div class="agent-icon-box render">&#x1f3a8;</div>
         <h4>Render Agent</h4>
-        <div class="agent-file">~/.claude/agents/telos/render.md</div>
+        <div class="agent-file">agents/telos-render.md</div>
         <p>Two modes: Create (wireframe to screen) or Modify (apply changes to existing screen). Reads design system from design-system.json. Outputs versioned files (-v1, -v2).</p>
         <div class="io-section">
           <div class="io-label">Input</div>
@@ -533,7 +550,7 @@
       <div class="agent-card">
         <div class="agent-icon-box" style="background:#fce4ec;">&#x1f3a8;</div>
         <h4>Design System Agent</h4>
-        <div class="agent-file">~/.claude/agents/telos/design-system.md</div>
+        <div class="agent-file">agents/telos-design-system.md</div>
         <p>Analyzes 3-5 product screenshots and extracts design tokens (colors, typography, radius, components) into design-system.json.</p>
         <div class="io-section">
           <div class="io-label">Input</div>
@@ -545,7 +562,7 @@
       <div class="agent-card">
         <div class="agent-icon-box critique">&#x1f50d;</div>
         <h4>Critique Agent</h4>
-        <div class="agent-file">~/.claude/agents/telos/critique.md</div>
+        <div class="agent-file">agents/telos-critique.md</div>
         <p>Evaluates flow screens against KRs. Produces a critique card with alignment score, strengths, gaps, and suggestions.</p>
         <div class="io-section">
           <div class="io-label">Input</div>
@@ -557,7 +574,7 @@
       <div class="agent-card">
         <div class="agent-icon-box eval">&#x1f4ca;</div>
         <h4>Eval Agent</h4>
-        <div class="agent-file">~/.claude/agents/telos/eval.md</div>
+        <div class="agent-file">agents/telos-eval.md</div>
         <p>Scores critique quality using 6 dimensions. Produces confidence badge data. Recommends retry if below threshold.</p>
         <div class="io-section">
           <div class="io-label">Input</div>
@@ -568,14 +585,14 @@
       </div>
       <div class="agent-card">
         <div class="agent-icon-box registry">&#x1f4c1;</div>
-        <h4>Registry Agent</h4>
-        <div class="agent-file">~/.claude/agents/telos/registry.md</div>
-        <p>Syncs outputs to GitHub. Updates manifest.json, walkthroughs, and checks flow ownership. Git pull before work, push after.</p>
+        <h4>Registry <span style="font-weight:500;color:#888;font-size:13px;">(script, not an agent)</span></h4>
+        <div class="agent-file">bin/telos-registry &middot; python3</div>
+        <p>Deterministic bookkeeping — never a language model touching your files or repo. Updates manifest.json, generates the walkthrough, tracks versions, checks flow ownership for squads. In local mode it just writes files; connect a repo and it pulls, commits, and pushes with squad-safe conflict merging.</p>
         <div class="io-section">
           <div class="io-label">Input</div>
-          <div class="io-value">Screen file path, flow/project names</div>
+          <div class="io-value">Screen path, flow/project names, version info</div>
           <div class="io-label" style="margin-top:6px">Output</div>
-          <div class="io-value">Updated manifest.json, walkthrough.html, git push to GitHub</div>
+          <div class="io-value">Updated manifest.json + generated walkthrough; git sync when connected</div>
         </div>
       </div>
     </div>
@@ -590,7 +607,7 @@ const canvasRect = () => canvas.getBoundingClientRect();
 
 const AGENTS = {
   designsystem: {
-    title: 'Design System Agent', file: 'telos/design-system.md', icon: '\u{1F3A8}',
+    title: 'Design System Agent', file: 'agents/telos-design-system.md', icon: '\u{1F3A8}',
     color: '#E91E63', colorLight: '#fce4ec', colorText: '#C2185B',
     input: '3-5 product screenshots',
     output: 'design-system.json with colors, typography, radius, components',
@@ -598,7 +615,7 @@ const AGENTS = {
     x: 0.5, y: 0.28
   },
   render: {
-    title: 'Render Agent', file: 'telos/render.md', icon: '\u{1F58C}',
+    title: 'Render Agent', file: 'agents/telos-render.md', icon: '\u{1F58C}',
     color: '#00a862', colorLight: '#e8f5e9', colorText: '#2e7d32',
     input: 'Wireframe or existing screen + modifications',
     output: 'Versioned HTML screen (-v1, -v2, ...)',
@@ -606,7 +623,7 @@ const AGENTS = {
     x: 0.22, y: 0.5
   },
   critique: {
-    title: 'Critique Agent', file: 'telos/critique.md', icon: '\u{1F50D}',
+    title: 'Critique Agent', file: 'agents/telos-critique.md', icon: '\u{1F50D}',
     color: '#f5a623', colorLight: '#fff8e1', colorText: '#e65100',
     input: 'Screen file paths, KR statement(s), flow name',
     output: 'critique-card.html with alignment score (1-5)',
@@ -614,7 +631,7 @@ const AGENTS = {
     x: 0.78, y: 0.5
   },
   eval: {
-    title: 'Eval Agent', file: 'telos/eval.md', icon: '\u{1F4CA}',
+    title: 'Eval Agent', file: 'agents/telos-eval.md', icon: '\u{1F4CA}',
     color: '#9c27b0', colorLight: '#f3e5f5', colorText: '#7b1fa2',
     input: 'Critique card content, KR, mode (single/suite)',
     output: 'Score X/30, confidence badge data',
@@ -622,11 +639,11 @@ const AGENTS = {
     x: 0.78, y: 0.82
   },
   registry: {
-    title: 'Registry Agent', file: 'telos/registry.md', icon: '\u{1F4C1}',
+    title: 'Registry (script)', file: 'bin/telos-registry', icon: '\u{1F4C1}',
     color: '#2196F3', colorLight: '#e3f2fd', colorText: '#1565c0',
-    input: 'Screen file path, flow name, project, version info',
-    output: 'Updated manifest.json, walkthrough.html, git push',
-    functions: ['Git Pull/Push', 'Update Manifest', 'Version Tracking', 'Ownership Check', 'Update Walkthrough'],
+    input: 'Screen path, flow/project names, version info',
+    output: 'Updated manifest.json, generated walkthrough, git sync (connected mode)',
+    functions: ['Update Manifest', 'Generate Walkthrough', 'Version Tracking', 'Ownership Check', 'Local or Git Sync'],
     x: 0.22, y: 0.82
   }
 };
