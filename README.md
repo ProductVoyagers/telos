@@ -64,6 +64,21 @@ And because AI output needs to earn trust before it goes to leadership, `/telos-
 
 You opt into each rung when *you're* ready. Nothing pushes anywhere until you connect a repo.
 
+## Connecting to GitHub (optional)
+
+Telos is **local-first** — it works fully on your machine with no GitHub at all. "Connecting" just means pointing Telos at **a GitHub repo you own** so two things become possible: your hub turns into a **live, shareable website**, and a **squad can collaborate** in one place. You can stay local forever, or connect whenever you want by re-running `/telos-setup`.
+
+When you connect, here's exactly what happens:
+
+1. **You create an empty GitHub repo** — e.g. `my-telos-flows`. (Make it *public* if you want the hub to be publicly viewable.)
+2. **Run `/telos-setup`** and choose "connect"; paste your repo's URL.
+3. Telos **clones it to your machine** and uses it as your workspace. From then on, every screen and critique you make is **committed and pushed to that repo automatically** — you never run git yourself.
+4. **Turn on GitHub Pages** for the repo (Settings → Pages → Branch: `main`). Your hub is now live at your Pages URL — share it in Slack, a doc, or a stakeholder review.
+
+**What lands in the repo:** your flows, screens, critiques, the manifest, and the hub pages — all in *your* repo, under your control. Nothing is sent anywhere else.
+
+**For a squad:** each teammate creates their `~/.telos` config pointing at the **same** repo. Everyone's screens and critiques land in one shared hub, attributed to whoever made them, with versioned screens and threaded comments. That's the "Telos as your team's Figma" rung.
+
 ## Under the hood
 
 - **You talk to a concierge skill** (`/telos`) running in your main Claude session — it understands intent and orchestrates the rest.
@@ -74,6 +89,10 @@ You opt into each rung when *you're* ready. Nothing pushes anywhere until you co
 ## Privacy
 
 Telos runs locally in Claude Code. Your screens, KRs, and design system never leave your machine unless *you* connect a repo and push them there. Your GitHub stays yours; Telos just writes to the repo you point it at.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Use it, fork it, build on it.
 
 ---
 

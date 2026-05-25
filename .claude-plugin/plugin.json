@@ -7,5 +7,6 @@
     "email": "community@productvoyagers.com"
   },
   "homepage": "https://github.com/ProductVoyagers/telos",
+  "license": "MIT",
   "keywords": ["pm", "product", "design", "critique", "okr", "kr", "figma"]
 }
