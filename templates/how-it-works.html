@@ -355,7 +355,8 @@
       <div class="graph-bg"></div>
 
       <div class="skill-tabs">
-        <div class="skill-tab active" data-skill="napkin">/telos-napkin</div>
+        <div class="skill-tab active" data-skill="telos">/telos</div>
+        <div class="skill-tab" data-skill="napkin">/telos-napkin</div>
         <div class="skill-tab" data-skill="impact-review">/telos-review</div>
         <div class="skill-tab" data-skill="eval">/telos-eval</div>
         <div class="skill-tab" data-skill="apply">/telos-apply</div>
@@ -364,22 +365,22 @@
 
       <svg class="graph-svg" id="graphSvg">
         <defs>
-          <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#00a862" stroke-width="1.5" stroke-linejoin="round"/>
           </marker>
-          <marker id="arr-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <marker id="arr-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#f5a623" stroke-width="1.5" stroke-linejoin="round"/>
           </marker>
-          <marker id="arr-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <marker id="arr-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#9c27b0" stroke-width="1.5" stroke-linejoin="round"/>
           </marker>
-          <marker id="arr-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <marker id="arr-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#2196F3" stroke-width="1.5" stroke-linejoin="round"/>
           </marker>
-          <marker id="arr-pink" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <marker id="arr-pink" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#E91E63" stroke-width="1.5" stroke-linejoin="round"/>
           </marker>
-          <marker id="arr-dim" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <marker id="arr-dim" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-linejoin="round"/>
           </marker>
         </defs>
@@ -649,6 +650,13 @@ const AGENTS = {
 };
 
 const EDGES = {
+  telos: [
+    { from: 'designsystem', to: 'render', label: 'design system', order: 1 },
+    { from: 'render', to: 'critique', label: 'screens', order: 2 },
+    { from: 'render', to: 'registry', label: 'register', order: 3 },
+    { from: 'critique', to: 'eval', label: 'critique card', order: 4 },
+    { from: 'critique', to: 'registry', label: 'update', order: 5 }
+  ],
   napkin: [
     { from: 'render', to: 'registry', label: 'screen path', order: 1 },
     { from: 'render', to: 'critique', label: 'screen files', order: 2, optional: true },
@@ -671,6 +679,7 @@ const EDGES = {
 };
 
 const ACTIVE_AGENTS = {
+  telos: ['designsystem', 'render', 'critique', 'eval', 'registry'],
   napkin: ['designsystem', 'render', 'registry', 'critique', 'eval'],
   'impact-review': ['critique', 'eval', 'registry'],
   eval: ['critique', 'eval'],
@@ -680,7 +689,7 @@ const ACTIVE_AGENTS = {
 
 let nodes = {};
 let selectedNode = null;
-let activeSkill = 'napkin';
+let activeSkill = 'telos';
 let dragging = null;
 let dragOffset = { x: 0, y: 0 };
 let pulsePhase = 0;
