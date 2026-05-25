@@ -90,14 +90,16 @@ When you connect, here's exactly what happens:
 
 Telos runs locally in Claude Code. Your screens, KRs, and design system never leave your machine unless *you* connect a repo and push them there. Your GitHub stays yours; Telos just writes to the repo you point it at.
 
-## License
+## License & credit
 
-MIT — see [LICENSE](LICENSE). Use it, fork it, build on it.
+Licensed under the **Apache License 2.0** — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Use it, fork it, build on it; just keep the attribution.
+
+**Created by [ProductVoyagers](https://github.com/ProductVoyagers).** Telos — the approach of critiquing design against business goals, and this implementation — originated here. If you build on it, the NOTICE keeps the credit with it.
 
 ---
 
 <div align="center">
 
-Built by **[ProductVoyagers](https://github.com/ProductVoyagers)** · for the PMs building with AI
+Created by **[ProductVoyagers](https://github.com/ProductVoyagers)** · for the PMs building with AI
 
 </div>
