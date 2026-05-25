@@ -138,6 +138,9 @@ Licensed under the **Apache License 2.0** — see [LICENSE](LICENSE) and [NOTICE
 
 <div align="center">
 
-Created by **[ProductVoyagers](https://github.com/ProductVoyagers)** · for the PMs building with AI
+Created by **[ProductVoyagers](https://www.productvoyagers.com)** · for PMs building with AI
+
+Telos is part of **ProductVoyagers** — the reads, ideas, and tools for the AI-native PM.
+Read the essays at **[productvoyagers.com](https://www.productvoyagers.com)** · code at **[GitHub](https://github.com/ProductVoyagers)**
 
 </div>
