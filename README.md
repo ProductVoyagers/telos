@@ -90,6 +90,8 @@ When you connect, here's exactly what happens:
 
 Telos runs locally in Claude Code. Your screens, KRs, and design system never leave your machine unless *you* connect a repo and push them there. Your GitHub stays yours; Telos just writes to the repo you point it at.
 
+> **Using Telos for work at a company?** Stay in **local mode**, or connect a **private** repo — never push proprietary designs to a public one. Telos is local-first precisely so your employer's work never leaves your machine unless you deliberately send it somewhere, and for company work that somewhere should be private. No new vendor, no data leaving your laptop, nothing for IT/security to approve.
+
 ## License & credit
 
 Licensed under the **Apache License 2.0** — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Use it, fork it, build on it; just keep the attribution.
