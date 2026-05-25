@@ -81,6 +81,32 @@ When you connect, here's exactly what happens:
 
 ## Under the hood
 
+You talk to one concierge. It routes to task skills, which split the work two ways — **judgment goes to subagents, mechanics go to a script** — and everything lands in a workspace you own:
+
+```mermaid
+flowchart TD
+    You(["You"]) -->|"plain language"| C["/telos<br/>concierge skill"]
+    C --> S["task skills<br/>setup · napkin · review · apply · eval"]
+    S -->|"judgment work"| A[["subagents<br/>render · critique · design-system · eval"]]
+    S -->|"bookkeeping"| R{{"telos-registry<br/>(deterministic script)"}}
+    A -->|"screens · critiques · tokens"| R
+    R --> W[("workspace<br/>+ manifest.json")]
+    W -->|"rung 1 · local"| LH["local hub"]
+    W -. "rung 2 & 3 · connect a repo" .-> G[("your GitHub repo")]
+    G --> PH["shareable hub<br/>(GitHub Pages)"]
+```
+
+And the core loop — sketch a screen, critique it against the goal, improve it:
+
+```mermaid
+flowchart LR
+    WF["wireframe"] --> RN[["render"]] --> SC["screen"]
+    KR(["your KR"]) --> CR[["critique"]]
+    SC --> CR --> CARD["critique card<br/>+ alignment score"]
+    CARD --> EV[["eval"]] --> CF["confidence score"]
+    CARD --> AP["apply recommendations"] --> RN
+```
+
 - **You talk to a concierge skill** (`/telos`) running in your main Claude session — it understands intent and orchestrates the rest.
 - **Specialist subagents** do the focused work in isolation: rendering screens, critiquing against KRs, extracting your design system, scoring critique quality.
 - **A deterministic registry script** handles the bookkeeping — manifest, walkthrough generation, and git sync — so a language model never hand-edits your files or your repo.
