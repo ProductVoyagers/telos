@@ -20,6 +20,16 @@ You give it your screens and a **KR** (a Key Result — the number you're trying
 
 It runs entirely inside Claude Code. No new vendor to get past security. No Figma seat. No data leaves your machine unless you decide to share it.
 
+**In one picture** — you bring an idea and a goal; the agents hand each other the work and you get a shareable, goal-scored hub:
+
+```mermaid
+flowchart LR
+    A(["your idea<br/>+ your KR"]) -->|sketch| B[["render"]]
+    B -->|screen| C[["critique"]]
+    C -->|scored vs your goal| D[["eval"]]
+    D -->|confidence| E(["shareable hub"])
+```
+
 ## Install
 
 ```
