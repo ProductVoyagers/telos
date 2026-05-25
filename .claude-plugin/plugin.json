@@ -1,0 +1,11 @@
+{
+  "name": "telos",
+  "description": "The PM toolkit where every screen is critiqued against a business goal. Turn wireframes into styled mockups, critique flows against your KRs (not UX heuristics), and collaborate with your squad in a shared, goal-annotated design hub.",
+  "version": "0.1.0",
+  "author": {
+    "name": "ProductVoyagers",
+    "email": "community@productvoyagers.com"
+  },
+  "homepage": "https://github.com/ProductVoyagers/telos",
+  "keywords": ["pm", "product", "design", "critique", "okr", "kr", "figma"]
+}

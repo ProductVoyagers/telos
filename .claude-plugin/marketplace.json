@@ -1,0 +1,14 @@
+{
+  "name": "productvoyagers",
+  "owner": {
+    "name": "ProductVoyagers",
+    "email": "community@productvoyagers.com"
+  },
+  "plugins": [
+    {
+      "name": "telos",
+      "source": "./",
+      "description": "The PM toolkit where every screen is critiqued against a business goal."
+    }
+  ]
+}

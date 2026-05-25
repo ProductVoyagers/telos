@@ -1,0 +1,665 @@
+#!/usr/bin/env python3
+"""
+telos-registry — deterministic bookkeeping for Telos.
+
+Owns: manifest.json edits, workspace scaffolding, and git sync.
+Does NOT generate screen/critique HTML (that's the subagents' job).
+
+Reads ~/.telos/config.json. In sync="local" mode it never touches git.
+In sync="github" mode it pull-rebases, commits with the user's Telos
+identity, and pushes — re-applying its manifest change on conflict so a
+squad can work the same repo without clobbering each other.
+
+Subcommands:
+  init                          scaffold the workspace (dirs, manifest, hub templates)
+  add-screen   --project --flow --screen --file [--screen-name --note]
+  add-version  --project --flow --screen --file [--applied-recs --note]
+  set-critique --project --flow [--alignment --verdict --kr --has-review]
+  sync         [--message]      pull/commit/push current workspace state
+  serve        [--port]         serve the workspace locally to view the hub
+  status                        print config + workspace summary
+"""
+
+import argparse
+import html
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from datetime import date
+from pathlib import Path
+
+CONFIG_PATH = Path.home() / ".telos" / "config.json"
+MANIFEST_NAME = "manifest.json"
+
+# Neutral defaults for fields the project-index template renders directly.
+# Skills can override per flow via --flow-icon / --flow-iconbg / --flow-description.
+DEFAULT_ICON = "\U0001F4C4"      # 📄
+DEFAULT_ICON_BG = "#eef2f7"
+
+ARROW_SVG = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+             'stroke-width="2" style="transform:scaleX(-1)"><path d="M5 12h14M13 6l6 6-6 6"/></svg>')
+
+
+# ---------------------------------------------------------------- errors / output
+
+class TelosError(Exception):
+    pass
+
+
+def die(msg):
+    print(f"telos-registry: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def info(msg):
+    print(msg)
+
+
+# ---------------------------------------------------------------- helpers
+
+def slugify(text):
+    s = re.sub(r"[^a-z0-9]+", "-", text.strip().lower())
+    return re.sub(r"(^-+|-+$)", "", s) or "untitled"
+
+
+def titleize(slug):
+    return " ".join(w.capitalize() for w in slug.replace("-", " ").split())
+
+
+def plugin_root():
+    env = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if env:
+        return Path(env)
+    return Path(__file__).resolve().parent.parent
+
+
+def load_config():
+    if not CONFIG_PATH.exists():
+        raise TelosError(
+            f"no config at {CONFIG_PATH}. Run /telos-setup first."
+        )
+    try:
+        cfg = json.loads(CONFIG_PATH.read_text())
+    except json.JSONDecodeError as e:
+        raise TelosError(f"config.json is not valid JSON: {e}")
+    for key in ("schemaVersion", "identity", "sync", "workspace", "designSystem"):
+        if key not in cfg:
+            raise TelosError(f"config.json missing required key: {key}")
+    if cfg["sync"] not in ("local", "github"):
+        raise TelosError(f"config.sync must be 'local' or 'github', got {cfg['sync']!r}")
+    if cfg["sync"] == "github" and "repo" not in cfg:
+        raise TelosError("config.sync is 'github' but no 'repo' block is set")
+    return cfg
+
+
+def workspace_path(cfg):
+    return Path(os.path.expanduser(cfg["workspace"]))
+
+
+def manifest_path(cfg):
+    return workspace_path(cfg) / MANIFEST_NAME
+
+
+def read_json(path, default=None):
+    p = Path(path)
+    if not p.exists():
+        return default
+    return json.loads(p.read_text())
+
+
+def write_json(path, obj):
+    Path(path).write_text(json.dumps(obj, indent=2, ensure_ascii=False) + "\n")
+
+
+def empty_manifest(cfg):
+    return {
+        "telos": {"schemaVersion": 1},
+        "team": cfg.get("team"),
+        "designSystem": cfg["designSystem"],
+        "projects": {},
+    }
+
+
+def load_manifest(cfg):
+    return read_json(manifest_path(cfg), default=empty_manifest(cfg))
+
+
+# ---------------------------------------------------------------- git
+
+def is_github(cfg):
+    return cfg["sync"] == "github"
+
+
+def git(cfg, *args, check=True, capture=False):
+    ws = str(workspace_path(cfg))
+    ident = cfg["identity"]
+    cmd = [
+        "git", "-C", ws,
+        "-c", f"user.name={ident['name']}",
+        "-c", f"user.email={ident['email']}",
+        "-c", "core.editor=true",
+        *args,
+    ]
+    env = dict(os.environ, GIT_EDITOR="true")
+    res = subprocess.run(
+        cmd, env=env,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.PIPE if capture else None,
+        text=True,
+    )
+    if check and res.returncode != 0:
+        err = (res.stderr or "").strip() if capture else ""
+        raise TelosError(f"git {' '.join(args)} failed: {err}")
+    return res
+
+
+def git_show_remote(cfg, relpath):
+    """Return the remote (origin/<branch>) version of a file, parsed as JSON."""
+    branch = cfg["repo"].get("branch", "main")
+    res = git(cfg, "show", f"origin/{branch}:{relpath}", check=False, capture=True)
+    if res.returncode != 0:
+        return None
+    return json.loads(res.stdout)
+
+
+def conflicted_files(cfg):
+    res = git(cfg, "diff", "--name-only", "--diff-filter=U", capture=True)
+    return [f for f in res.stdout.splitlines() if f.strip()]
+
+
+# ---------------------------------------------------------------- the sync wrapper
+
+def commit_change(cfg, mutate, extra_files, message):
+    """
+    Apply `mutate(manifest_dict)` to manifest.json, plus stage `extra_files`,
+    and (in github mode) commit + push. On a push conflict, take the remote
+    manifest and re-apply `mutate` so concurrent squad edits merge cleanly.
+    `mutate` MUST be idempotent (upsert, never append-duplicate).
+    """
+    mpath = manifest_path(cfg)
+
+    def apply():
+        m = load_manifest(cfg)
+        mutate(m)
+        write_json(mpath, m)
+        return regen_derived(cfg, m)
+
+    if not is_github(cfg):
+        apply()
+        return
+
+    branch = cfg["repo"].get("branch", "main")
+    git(cfg, "fetch", "origin", branch, check=False)
+    git(cfg, "pull", "--rebase", "--autostash", "origin", branch, check=False)
+
+    derived = apply()
+    _stage(cfg, [MANIFEST_NAME] + list(extra_files) + derived)
+
+    # Nothing staged? (idempotent re-run) — skip the commit.
+    if git(cfg, "diff", "--cached", "--quiet", check=False).returncode == 0:
+        info("nothing to commit (already up to date)")
+        return
+
+    git(cfg, "commit", "-m", message)
+
+    for attempt in range(3):
+        if git(cfg, "push", "origin", branch, check=False).returncode == 0:
+            return
+        # rejected — someone else pushed. Rebase our commit on top.
+        git(cfg, "fetch", "origin", branch, check=False)
+        if git(cfg, "rebase", f"origin/{branch}", check=False).returncode != 0:
+            _resolve_rebase_conflicts(cfg, mutate)
+            git(cfg, "rebase", "--continue", check=False)
+    raise TelosError(
+        "could not push after 3 tries. Run `telos-registry sync` again, "
+        "or resolve the repo state manually."
+    )
+
+
+def _stage(cfg, files):
+    ws = workspace_path(cfg)
+    rels = []
+    for f in files:
+        fp = Path(f) if Path(f).is_absolute() else (ws / f)
+        if fp.exists():
+            rels.append(str(fp.resolve().relative_to(ws.resolve())))
+    if rels:
+        git(cfg, "add", *rels)
+
+
+def _resolve_rebase_conflicts(cfg, mutate):
+    # Rebuild the manifest from the remote tip + our change, regenerate every
+    # derived file, and stage it all. manifest + walkthroughs + project indexes
+    # are fully reproducible from the manifest, so this resolves the common
+    # squad conflict without hand-merging. Screen files are uniquely named and
+    # replayed by the rebase, so they don't collide.
+    remote = git_show_remote(cfg, MANIFEST_NAME) or empty_manifest(cfg)
+    mutate(remote)
+    write_json(manifest_path(cfg), remote)
+    regen_derived(cfg, remote)
+    git(cfg, "add", "-A")
+
+
+# ---------------------------------------------------------------- manifest mutations
+
+def ensure_project(m, project_slug, name=None, code=None):
+    proj = m["projects"].get(project_slug)
+    if proj is None:
+        proj = {
+            "name": name or titleize(project_slug),
+            "code": code,
+            "description": "",
+            "status": "active",
+            "flows": {},
+        }
+        m["projects"][project_slug] = proj
+    elif code is not None:
+        proj["code"] = code
+    return proj
+
+
+def ensure_flow(m, cfg, project_slug, flow_slug, name=None,
+                description=None, icon=None, icon_bg=None,
+                project_name=None, project_code=None):
+    proj = ensure_project(m, project_slug, name=project_name, code=project_code)
+    flow = proj["flows"].get(flow_slug)
+    owner = cfg["identity"]["email"]
+    if flow is None:
+        flow = {
+            "name": name or titleize(flow_slug),
+            "description": description or "",
+            "icon": icon or DEFAULT_ICON,
+            "iconBg": icon_bg or DEFAULT_ICON_BG,
+            "owner": owner,
+            "status": "active",
+            "screens": [],
+            "impactReview": None,
+        }
+        proj["flows"][flow_slug] = flow
+    else:
+        if flow.get("owner") and flow["owner"] != owner:
+            raise TelosError(
+                f"flow '{flow['name']}' is owned by {flow['owner']}. "
+                f"Fork it as '{flow_slug}-{slugify(cfg['identity']['name'])}' to make your own."
+            )
+        if description is not None:
+            flow["description"] = description
+        if icon is not None:
+            flow["icon"] = icon
+        if icon_bg is not None:
+            flow["iconBg"] = icon_bg
+    return flow
+
+
+def find_screen(flow, screen_slug):
+    for s in flow["screens"]:
+        if s["slug"] == screen_slug:
+            return s
+    return None
+
+
+def mutate_add_screen(cfg, project_slug, flow_slug, screen_slug, screen_name, filename, note,
+                      flow_meta=None):
+    flow_meta = flow_meta or {}
+
+    def _m(m):
+        flow = ensure_flow(m, cfg, project_slug, flow_slug,
+                           name=flow_meta.get("name"),
+                           description=flow_meta.get("description"),
+                           icon=flow_meta.get("icon"),
+                           icon_bg=flow_meta.get("icon_bg"),
+                           project_name=flow_meta.get("project_name"),
+                           project_code=flow_meta.get("project_code"))
+        existing = find_screen(flow, screen_slug)
+        if existing:  # upsert — re-apply safe
+            existing["file"] = filename
+            return
+        order = max((s.get("order", 0) for s in flow["screens"]), default=0) + 1
+        flow["screens"].append({
+            "slug": screen_slug,
+            "name": screen_name or titleize(screen_slug),
+            "order": order,
+            "file": filename,
+            "currentVersion": 1,
+            "versions": [{"version": 1, "file": filename, "note": note or "Original"}],
+        })
+    return _m
+
+
+def mutate_add_version(cfg, project_slug, flow_slug, screen_slug, filename, applied_recs, note):
+    def _m(m):
+        flow = ensure_flow(m, cfg, project_slug, flow_slug)
+        screen = find_screen(flow, screen_slug)
+        if screen is None:
+            raise TelosError(f"screen '{screen_slug}' not found in flow '{flow_slug}'")
+        # idempotent: if this file is already the current version, no-op
+        if any(v["file"] == filename for v in screen["versions"]):
+            screen["file"] = filename
+            screen["currentVersion"] = next(
+                v["version"] for v in screen["versions"] if v["file"] == filename
+            )
+            return
+        next_ver = max(v["version"] for v in screen["versions"]) + 1
+        screen["versions"].append({
+            "version": next_ver,
+            "file": filename,
+            "appliedRecs": applied_recs,
+            "parentVersion": screen["currentVersion"],
+            "note": note or f"v{next_ver}",
+        })
+        screen["currentVersion"] = next_ver
+        screen["file"] = filename
+    return _m
+
+
+def mutate_set_critique(cfg, project_slug, flow_slug, alignment, verdict, kr, has_review):
+    def _m(m):
+        flow = ensure_flow(m, cfg, project_slug, flow_slug)
+        ir = flow.get("impactReview") or {}
+        ir["hasCritique"] = True
+        if has_review:
+            ir["hasReview"] = True
+        if alignment is not None:
+            ir["alignment"] = alignment
+        if verdict is not None:
+            ir["verdict"] = verdict
+        if kr is not None:
+            ir["kr"] = kr
+        ir["date"] = date.today().isoformat()
+        flow["impactReview"] = ir
+    return _m
+
+
+# ---------------------------------------------------------------- scaffolding
+
+# Workspace-root files copied once at init. (project-index is copied per project;
+# walkthroughs are generated per flow — both handled by regen_derived.)
+TEMPLATE_FILES = {
+    "index.html": "index.html",
+    "how-it-works.html": "how-it-works.html",
+    "comments.js": "comments.js",
+    "comments.css": "comments.css",
+}
+
+
+def _tpl(name):
+    return plugin_root() / "templates" / name
+
+
+def ensure_project_index(cfg, project_slug):
+    """Copy the per-project index template into the project dir if missing."""
+    ws = workspace_path(cfg)
+    dest = ws / "projects" / project_slug / "index.html"
+    src = _tpl("project-index.html")
+    if src.exists():
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if not dest.exists():
+            shutil.copy2(src, dest)
+    return dest
+
+
+def generate_walkthrough(cfg, project_slug, project_name, flow_slug, flow):
+    """Build the per-flow walkthrough.html from the template — one slide per screen."""
+    screens = sorted(flow.get("screens", []), key=lambda s: s.get("order", 0))
+    if not screens:
+        return None
+    tpl = _tpl("walkthrough-template.html")
+    if not tpl.exists():
+        return None
+    src = tpl.read_text()
+    n = len(screens)
+    slides, dots = [], []
+    for i, s in enumerate(screens):
+        cls = "slide active" if i == 0 else "slide right"
+        if n == 1:
+            hint = ARROW_SVG + " Single screen flow"
+        elif i < n - 1:
+            hint = ARROW_SVG + " Tap to continue"
+        else:
+            hint = "End of flow"
+        slides.append(
+            '  <div class="' + cls + '" id="slide-' + str(i) + '">\n'
+            '    <div class="slide-label">' + html.escape(s["name"]) + '</div>\n'
+            '    <div class="phone" onclick="advance(event)">\n'
+            '      <iframe src="' + html.escape(s["file"]) + '?embed" scrolling="no"></iframe>\n'
+            '    </div>\n'
+            '    <div class="slide-hint">' + hint + '</div>\n'
+            '  </div>'
+        )
+        dots.append('    <div class="dot' + (' active' if i == 0 else '') +
+                    '" onclick="goTo(' + str(i) + ')"></div>')
+    out = (src
+           .replace("{{FLOW_NAME}}", html.escape(flow["name"]))
+           .replace("{{PROJECT_NAME}}", html.escape(project_name))
+           .replace("{{TOTAL}}", str(n))
+           .replace("{{SLIDES}}", "\n".join(slides))
+           .replace("{{DOTS}}", "\n".join(dots)))
+    dest = workspace_path(cfg) / "projects" / project_slug / "flows" / flow_slug / "walkthrough.html"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(out)
+    return dest
+
+
+def regen_derived(cfg, m):
+    """Regenerate every derived file (project indexes + walkthroughs) from the manifest.
+    Idempotent and brute-force, so it always matches the manifest even after a merge."""
+    paths = []
+    for pslug, p in (m.get("projects") or {}).items():
+        paths.append(ensure_project_index(cfg, pslug))
+        pname = p.get("name") or titleize(pslug)
+        for fslug, f in (p.get("flows") or {}).items():
+            wp = generate_walkthrough(cfg, pslug, pname, fslug, f)
+            if wp:
+                paths.append(wp)
+    return [str(x) for x in paths if x]
+
+
+def scaffold_workspace(cfg):
+    ws = workspace_path(cfg)
+    ws.mkdir(parents=True, exist_ok=True)
+    (ws / "projects").mkdir(exist_ok=True)
+    (ws / "comments").mkdir(exist_ok=True)
+
+    troot = plugin_root() / "templates"
+    copied = []
+    for src_name, dest_name in TEMPLATE_FILES.items():
+        src = troot / src_name
+        dest = ws / dest_name
+        if src.exists() and not dest.exists():
+            shutil.copy2(src, dest)
+            copied.append(dest_name)
+
+    ds_dest = ws / cfg["designSystem"]
+    ds_src = troot / "design-system.default.json"
+    if ds_src.exists() and not ds_dest.exists():
+        shutil.copy2(ds_src, ds_dest)
+        copied.append(cfg["designSystem"])
+
+    mpath = manifest_path(cfg)
+    if not mpath.exists():
+        write_json(mpath, empty_manifest(cfg))
+        copied.append(MANIFEST_NAME)
+
+    return copied
+
+
+# ---------------------------------------------------------------- subcommands
+
+def cmd_init(cfg, args):
+    ws = workspace_path(cfg)
+    if is_github(cfg):
+        repo_url = cfg["repo"]["url"]
+        branch = cfg["repo"].get("branch", "main")
+        if not (ws / ".git").exists():
+            if ws.exists() and any(ws.iterdir()):
+                raise TelosError(
+                    f"workspace {ws} exists and is not empty but has no .git. "
+                    f"Point config.workspace at an empty dir or an existing clone."
+                )
+            ws.parent.mkdir(parents=True, exist_ok=True)
+            info(f"cloning {repo_url} into {ws} ...")
+            res = subprocess.run(["git", "clone", repo_url, str(ws)])
+            if res.returncode != 0:
+                raise TelosError("git clone failed")
+            git(cfg, "checkout", "-B", branch, check=False)
+    copied = scaffold_workspace(cfg)
+    if is_github(cfg):
+        commit_change(cfg, lambda m: None, copied, "telos: initialize workspace")
+        info("pushed initial workspace.")
+        info("Note: enable GitHub Pages on the repo (Settings > Pages > Branch: "
+             f"{cfg['repo'].get('branch', 'main')}) to publish the hub.")
+    info(f"workspace ready at {ws}")
+    info("scaffolded: " + (", ".join(copied) if copied else "(nothing new)"))
+
+
+def cmd_add_screen(cfg, args):
+    project = slugify(args.project or cfg.get("defaultProject") or "my-product")
+    flow = slugify(args.flow)
+    screen = slugify(args.screen)
+    filename = Path(args.file).name
+    flow_meta = {
+        "name": args.flow_name,
+        "description": args.flow_description,
+        "icon": args.flow_icon,
+        "icon_bg": args.flow_iconbg,
+        "project_name": args.project_name,
+        "project_code": args.project_code,
+    }
+    mutate = mutate_add_screen(cfg, project, flow, screen, args.screen_name, filename, args.note,
+                               flow_meta=flow_meta)
+    extra = [str(workspace_path(cfg) / "projects" / project / "flows" / flow / filename)]
+    commit_change(cfg, mutate, extra, f"{flow}: add {screen}")
+    info(f"registered screen {project}/{flow}/{screen} -> {filename}")
+
+
+def cmd_add_version(cfg, args):
+    project = slugify(args.project or cfg.get("defaultProject") or "my-product")
+    flow = slugify(args.flow)
+    screen = slugify(args.screen)
+    filename = Path(args.file).name
+    recs = [r.strip() for r in (args.applied_recs or "").split(",") if r.strip()]
+    mutate = mutate_add_version(cfg, project, flow, screen, filename, recs, args.note)
+    extra = [str(workspace_path(cfg) / "projects" / project / "flows" / flow / filename)]
+    commit_change(cfg, mutate, extra, f"{flow}: revise {screen} ({filename})")
+    info(f"registered new version of {project}/{flow}/{screen} -> {filename}")
+
+
+def cmd_set_critique(cfg, args):
+    project = slugify(args.project or cfg.get("defaultProject") or "my-product")
+    flow = slugify(args.flow)
+    mutate = mutate_set_critique(
+        cfg, project, flow, args.alignment, args.verdict, args.kr, args.has_review
+    )
+    fdir = workspace_path(cfg) / "projects" / project / "flows" / flow
+    extra = [str(p) for p in [fdir / "critique-card.html", fdir / "review.html"] if p.exists()]
+    commit_change(cfg, mutate, extra, f"{flow}: impact review")
+    info(f"recorded impact review for {project}/{flow}")
+
+
+def cmd_sync(cfg, args):
+    if not is_github(cfg):
+        info("sync='local' — nothing to push. Connect a repo with /telos-setup to share.")
+        return
+    msg = args.message or "telos: sync workspace"
+    commit_change(cfg, lambda m: None, [], msg)
+    pages = cfg["repo"].get("pagesUrl")
+    info("synced." + (f" Hub: {pages}" if pages else ""))
+
+
+def cmd_serve(cfg, args):
+    ws = workspace_path(cfg)
+    if not ws.exists():
+        raise TelosError(f"workspace {ws} does not exist. Run /telos-setup first.")
+    port = args.port
+    info(f"serving {ws} at http://localhost:{port}/  (Ctrl-C to stop)")
+    os.chdir(ws)
+    subprocess.run([sys.executable, "-m", "http.server", str(port)])
+
+
+def cmd_status(cfg, args):
+    ws = workspace_path(cfg)
+    m = load_manifest(cfg)
+    nproj = len(m.get("projects", {}))
+    nflows = sum(len(p.get("flows", {})) for p in m.get("projects", {}).values())
+    info(f"identity : {cfg['identity']['name']} <{cfg['identity']['email']}>")
+    info(f"sync     : {cfg['sync']}")
+    info(f"workspace: {ws}{'  (missing)' if not ws.exists() else ''}")
+    if is_github(cfg):
+        info(f"repo     : {cfg['repo']['url']}")
+        if cfg["repo"].get("pagesUrl"):
+            info(f"hub      : {cfg['repo']['pagesUrl']}")
+    info(f"projects : {nproj}   flows: {nflows}")
+
+
+# ---------------------------------------------------------------- cli
+
+def build_parser():
+    p = argparse.ArgumentParser(prog="telos-registry", description="Telos bookkeeping & sync.")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp = sub.add_parser("init", help="scaffold the workspace")
+    sp.set_defaults(func=cmd_init)
+
+    sp = sub.add_parser("add-screen", help="register a new screen (v1)")
+    sp.add_argument("--project")
+    sp.add_argument("--project-name")
+    sp.add_argument("--project-code")
+    sp.add_argument("--flow", required=True)
+    sp.add_argument("--flow-name")
+    sp.add_argument("--flow-description")
+    sp.add_argument("--flow-icon")
+    sp.add_argument("--flow-iconbg")
+    sp.add_argument("--screen", required=True)
+    sp.add_argument("--screen-name")
+    sp.add_argument("--file", required=True)
+    sp.add_argument("--note")
+    sp.set_defaults(func=cmd_add_screen)
+
+    sp = sub.add_parser("add-version", help="register a new version of a screen")
+    sp.add_argument("--project")
+    sp.add_argument("--flow", required=True)
+    sp.add_argument("--screen", required=True)
+    sp.add_argument("--file", required=True)
+    sp.add_argument("--applied-recs")
+    sp.add_argument("--note")
+    sp.set_defaults(func=cmd_add_version)
+
+    sp = sub.add_parser("set-critique", help="record impact-review data on a flow")
+    sp.add_argument("--project")
+    sp.add_argument("--flow", required=True)
+    sp.add_argument("--alignment", type=int)
+    sp.add_argument("--verdict")
+    sp.add_argument("--kr")
+    sp.add_argument("--has-review", action="store_true")
+    sp.set_defaults(func=cmd_set_critique)
+
+    sp = sub.add_parser("sync", help="pull/commit/push the workspace")
+    sp.add_argument("--message")
+    sp.set_defaults(func=cmd_sync)
+
+    sp = sub.add_parser("serve", help="serve the workspace locally")
+    sp.add_argument("--port", type=int, default=8765)
+    sp.set_defaults(func=cmd_serve)
+
+    sp = sub.add_parser("status", help="print config + workspace summary")
+    sp.set_defaults(func=cmd_status)
+
+    return p
+
+
+def main():
+    args = build_parser().parse_args()
+    try:
+        cfg = load_config()
+        args.func(cfg, args)
+    except TelosError as e:
+        die(str(e))
+    except KeyboardInterrupt:
+        sys.exit(130)
+
+
+if __name__ == "__main__":
+    main()

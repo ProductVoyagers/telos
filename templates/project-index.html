@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loading... - Telos</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar .left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .back-link {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f2f2f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #555;
+    transition: background 0.15s;
+  }
+  .back-link:hover { background: #e8e8e8; }
+  .back-link svg { width: 18px; height: 18px; }
+  .breadcrumb {
+    font-size: 14px;
+    color: #999;
+  }
+  .breadcrumb a { color: #999; text-decoration: none; }
+  .breadcrumb a:hover { color: #00a862; }
+  .breadcrumb .current { color: #1a1a1a; font-weight: 600; }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px;
+  }
+
+  .project-header {
+    margin-bottom: 36px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .project-header .left h1 {
+    font-size: 28px;
+    font-weight: 800;
+  }
+  .project-header .left h1 .code {
+    font-size: 16px;
+    font-weight: 500;
+    color: #999;
+    margin-left: 8px;
+  }
+  .project-header .left p {
+    font-size: 15px;
+    color: #888;
+    margin-top: 4px;
+  }
+  .project-stats {
+    display: flex;
+    gap: 16px;
+  }
+  .stat {
+    text-align: center;
+    padding: 8px 16px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 10px;
+  }
+  .stat .num {
+    font-size: 22px;
+    font-weight: 800;
+    color: #00a862;
+  }
+  .stat .label {
+    font-size: 11px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .flow-group {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .flow-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .flow-header:hover { background: #fafafa; }
+  .flow-header .left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .flow-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .flow-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .flow-header .desc {
+    font-size: 13px;
+    color: #888;
+    margin-top: 1px;
+  }
+  .flow-header .right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .flow-tag {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .flow-tag.count { background: #f0f0f0; color: #555; }
+  .flow-tag.active { background: #e8f5e9; color: #2e7d32; }
+  .flow-tag.draft { background: #fff3e0; color: #e65100; }
+  .flow-tag.planned { background: #f3e5f5; color: #7b1fa2; }
+  .impact-review-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: #fafafa;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .impact-review-bar .ir-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .impact-review-bar .ir-dots {
+    display: flex;
+    gap: 4px;
+  }
+  .impact-review-bar .ir-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e0e0e0;
+  }
+  .impact-review-bar .ir-dot.filled { background: #f5a623; }
+  .impact-review-bar .ir-status {
+    font-size: 13px;
+    color: #888;
+  }
+  .impact-review-bar .ir-status strong {
+    color: #f5a623;
+    font-weight: 600;
+  }
+  .impact-review-bar .ir-kr {
+    font-size: 12px;
+    color: #aaa;
+    margin-left: 8px;
+    padding-left: 12px;
+    border-left: 1px solid #ddd;
+  }
+  .ir-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s;
+    font-family: inherit;
+  }
+  .ir-btn:hover { background: #333; }
+  .ir-btn svg { width: 14px; height: 14px; }
+  .ir-right { display: flex; gap: 8px; align-items: center; }
+  .chevron {
+    width: 20px;
+    height: 20px;
+    color: #ccc;
+    transition: transform 0.2s;
+  }
+  .flow-group.open .chevron { transform: rotate(90deg); }
+
+  .flow-screens {
+    display: none;
+    padding: 20px 24px;
+    max-width: 900px;
+  }
+  .flow-group.open .flow-screens { display: block; }
+
+  .screens-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .screen-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+  }
+  .screen-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .screen-num {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #00a862;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 18px;
+    margin-right: 4px;
+  }
+  .screen-link {
+    display: block;
+    width: 100%;
+    aspect-ratio: 375 / 812;
+    border-radius: 18px;
+    border: 2px solid #e0e0e0;
+    overflow: hidden;
+    background: #fff;
+    transition: all 0.2s;
+    text-decoration: none;
+    position: relative;
+  }
+  .screen-link:hover {
+    border-color: #00a862;
+    box-shadow: 0 4px 16px rgba(0,168,98,0.12);
+    transform: translateY(-2px);
+  }
+  .screen-link iframe {
+    width: 375px;
+    height: 812px;
+    border: none;
+    transform-origin: top left;
+    pointer-events: none;
+  }
+  .screen-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f0f0f0;
+    border-radius: 10px 10px 0 0;
+    padding: 6px 10px;
+    margin-bottom: -2px;
+    position: relative;
+    z-index: 1;
+  }
+  .screen-bar .bar-label {
+    font-size: 10px;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .screen-bar .bar-label strong {
+    color: #333;
+    font-weight: 600;
+  }
+  .png-badge {
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .png-badge:hover { background: #333; }
+  .png-badge svg { width: 10px; height: 10px; }
+  .version-badge {
+    background: #e3f2fd;
+    color: #1565c0;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+
+  .screen-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .action-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    color: #555;
+    cursor: pointer;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.15s;
+  }
+  .action-btn:hover { background: #f5f5f5; border-color: #ccc; }
+  .action-btn svg { width: 11px; height: 11px; }
+
+  .add-flow {
+    border: 2px dashed #ddd;
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #bbb;
+    font-size: 14px;
+    font-weight: 500;
+    gap: 8px;
+    transition: all 0.15s;
+  }
+  .add-flow:hover {
+    border-color: #00a862;
+    color: #00a862;
+    background: #f0faf0;
+  }
+  .add-flow .plus {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  .add-flow:hover .plus { background: #e8f5e9; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="left">
+    <a class="back-link" href="../../index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="breadcrumb">
+      <span class="current" id="breadcrumb-name"></span>
+    </div>
+  </div>
+</div>
+
+<div class="container" id="content"></div>
+
+<script>
+var SVG_CHEVRON = '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>';
+var SVG_PLAY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+var SVG_EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+var SVG_DOWNLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+var SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+
+function getProjectSlug() {
+  var path = window.location.pathname;
+  var match = path.match(/\/projects\/([^/]+)\//);
+  if (match) return match[1];
+  var parts = path.split('/').filter(Boolean);
+  var idx = parts.indexOf('projects');
+  if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
+  return null;
+}
+
+function toggleFlow(el, event) {
+  if (event.target.closest('a')) return;
+  el.classList.toggle('open');
+}
+
+function buildDots(alignment) {
+  var html = '<div class="ir-dots">';
+  for (var i = 0; i < 5; i++) {
+    html += '<div class="ir-dot' + (i < alignment ? ' filled' : '') + '"></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function buildScreenCard(screen, flowSlug, projectCode) {
+  var filePath = 'flows/' + flowSlug + '/' + screen.file;
+  var label = projectCode || '';
+  var ver = screen.currentVersion || 1;
+  var versionBadge = '<span class="version-badge">v' + ver + '</span>';
+
+  return '<div class="screen-card">' +
+    '<div class="screen-label"><span class="screen-num">' + screen.order + '</span> ' + screen.name + '</div>' +
+    '<div class="screen-bar">' +
+      '<span class="bar-label">' + (label ? label + ' / ' : '') + '<strong>' + screen.name + '</strong></span>' +
+      '<span style="display:flex;gap:4px;align-items:center;">' + versionBadge +
+      '<a class="png-badge" href="' + filePath + '" target="_blank">' + SVG_DOWNLOAD + ' PNG</a></span>' +
+    '</div>' +
+    '<a class="screen-link" href="' + filePath + '">' +
+      '<iframe src="' + filePath + '?embed" loading="lazy"></iframe>' +
+    '</a>' +
+    '<div class="screen-actions">' +
+      '<a class="action-btn" href="' + filePath + '">' + SVG_OPEN + ' Open</a>' +
+    '</div>' +
+  '</div>';
+}
+
+function buildImpactBar(flow, flowSlug) {
+  var ir = flow.impactReview;
+  if (!ir) return '';
+
+  var html = '<div class="impact-review-bar">' +
+    '<div class="ir-left">' +
+      buildDots(ir.alignment) +
+      '<span class="ir-status"><strong>' + ir.verdict + '</strong> alignment</span>' +
+      '<span class="ir-kr">' + ir.kr + '</span>' +
+    '</div>' +
+    '<div class="ir-right">';
+
+  html += '<a class="ir-btn" href="flows/' + flowSlug + '/walkthrough.html" onclick="event.stopPropagation()" style="background:#00a862;">' + SVG_PLAY + ' Walkthrough</a>';
+
+  if (ir.hasReview) {
+    html += '<a class="ir-btn" href="flows/' + flowSlug + '/review.html" onclick="event.stopPropagation()">' + SVG_EYE + ' Impact Review</a>';
+  }
+
+  html += '</div></div>';
+  return html;
+}
+
+function buildWalkthroughOnly(flowSlug) {
+  return '<div class="impact-review-bar">' +
+    '<div class="ir-left"></div>' +
+    '<div class="ir-right">' +
+      '<a class="ir-btn" href="flows/' + flowSlug + '/walkthrough.html" onclick="event.stopPropagation()" style="background:#00a862;">' + SVG_PLAY + ' Walkthrough</a>' +
+    '</div></div>';
+}
+
+function buildFlowGroup(flowSlug, flow, projectCode) {
+  var screenCount = (flow.screens || []).length;
+  var statusClass = flow.status === 'draft' ? 'draft' : (flow.status === 'planned' ? 'planned' : 'active');
+  var statusLabel = flow.status.charAt(0).toUpperCase() + flow.status.slice(1);
+
+  var html = '<div class="flow-group open" onclick="toggleFlow(this, event)">' +
+    '<div class="flow-header">' +
+      '<div class="left">' +
+        '<div class="flow-icon" style="background:' + flow.iconBg + ';">' + flow.icon + '</div>' +
+        '<div><h3>' + flow.name + '</h3><div class="desc">' + flow.description + '</div></div>' +
+      '</div>' +
+      '<div class="right">' +
+        '<span class="flow-tag count">' + screenCount + ' screen' + (screenCount !== 1 ? 's' : '') + '</span>' +
+        '<span class="flow-tag ' + statusClass + '">' + statusLabel + '</span>' +
+        SVG_CHEVRON +
+      '</div>' +
+    '</div>';
+
+  if (flow.impactReview) {
+    html += buildImpactBar(flow, flowSlug);
+  } else if (screenCount > 0) {
+    html += buildWalkthroughOnly(flowSlug);
+  }
+
+  html += '<div class="flow-screens"><div class="screens-row">';
+  var screens = (flow.screens || []).sort(function(a, b) { return a.order - b.order; });
+  screens.forEach(function(s) {
+    html += buildScreenCard(s, flowSlug, projectCode);
+  });
+  html += '</div></div></div>';
+
+  return html;
+}
+
+var slug = getProjectSlug();
+
+fetch('../../manifest.json?t=' + Date.now())
+  .then(function(r) { return r.json(); })
+  .then(function(manifest) {
+    var project = (manifest.projects || {})[slug];
+    if (!project) {
+      document.getElementById('content').innerHTML = '<p>Project not found: ' + slug + '</p>';
+      return;
+    }
+
+    var displayName = project.name + (project.code ? ' (' + project.code + ')' : '');
+    document.title = displayName + ' - Telos';
+    document.getElementById('breadcrumb-name').textContent = displayName;
+
+    var flows = project.flows || {};
+    var flowKeys = Object.keys(flows);
+    var totalScreens = 0;
+    flowKeys.forEach(function(fk) { totalScreens += (flows[fk].screens || []).length; });
+
+    var html = '<div class="project-header">' +
+      '<div class="left">' +
+        '<h1>' + project.name + (project.code ? ' <span class="code">' + project.code + '</span>' : '') + '</h1>' +
+        '<p>' + project.description + '</p>' +
+      '</div>' +
+      '<div class="project-stats">' +
+        '<div class="stat"><div class="num">' + flowKeys.length + '</div><div class="label">Flows</div></div>' +
+        '<div class="stat"><div class="num">' + totalScreens + '</div><div class="label">Screens</div></div>' +
+      '</div>' +
+    '</div>';
+
+    flowKeys.forEach(function(fk) {
+      html += buildFlowGroup(fk, flows[fk], project.code || project.name);
+    });
+
+    html += '<div class="add-flow"><div class="plus">+</div> New Flow</div>';
+
+    document.getElementById('content').innerHTML = html;
+
+    var ro = new ResizeObserver(function(entries) {
+      entries.forEach(function(entry) {
+        var link = entry.target;
+        var iframe = link.querySelector('iframe');
+        if (iframe && link.clientWidth > 0) {
+          iframe.style.transform = 'scale(' + (link.clientWidth / 375) + ')';
+        }
+      });
+    });
+    document.querySelectorAll('.screen-link').forEach(function(link) {
+      ro.observe(link);
+    });
+  });
+</script>
+
+</body>
+</html>

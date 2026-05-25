@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How It Works - Telos</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    padding: 16px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .topbar .left { display: flex; align-items: center; gap: 12px; }
+  .back-link {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #f2f2f2; display: flex; align-items: center; justify-content: center;
+    text-decoration: none; color: #555; transition: background 0.15s;
+  }
+  .back-link:hover { background: #e8e8e8; }
+  .back-link svg { width: 18px; height: 18px; }
+  .breadcrumb { font-size: 14px; color: #999; }
+  .breadcrumb a { color: #999; text-decoration: none; }
+  .breadcrumb a:hover { color: #00a862; }
+  .breadcrumb .current { color: #1a1a1a; font-weight: 600; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 32px; }
+  .page-title { font-size: 32px; font-weight: 800; margin-bottom: 6px; }
+  .page-subtitle { font-size: 15px; color: #888; margin-bottom: 48px; line-height: 1.6; }
+
+  /* ── Graph ── */
+  .graph-section { margin-bottom: 56px; }
+  .graph-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+  .graph-canvas {
+    background: #fff;
+    border-radius: 24px;
+    border: 1px solid #e8e8e8;
+    position: relative;
+    overflow: hidden;
+    height: 720px;
+    cursor: default;
+    user-select: none;
+    box-shadow: 0 2px 40px rgba(0,0,0,0.04);
+  }
+
+  /* Subtle grid dots */
+  .graph-bg {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(circle, #e0e0e0 0.8px, transparent 0.8px);
+    background-size: 28px 28px;
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  .skill-tabs {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 4px; z-index: 20;
+    background: #fff;
+    padding: 4px; border-radius: 14px;
+    border: 1px solid #e8e8e8;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .skill-tab {
+    padding: 6px 12px; border-radius: 10px;
+    background: transparent; color: #999;
+    font-size: 11px; font-weight: 600; cursor: pointer; border: none;
+    transition: all 0.2s;
+    font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace;
+    white-space: nowrap;
+  }
+  .skill-tab:hover { color: #555; background: #f5f5f5; }
+  .skill-tab.active { background: #00a862; color: #fff; box-shadow: 0 2px 8px rgba(0,168,98,0.3); }
+
+  .graph-hint {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: #ccc; z-index: 20; pointer-events: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .graph-hint svg { width: 14px; height: 14px; color: #ccc; }
+
+  .graph-svg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 1;
+  }
+
+  /* ── Agent Nodes ── */
+  .agent-node {
+    position: absolute; z-index: 10; cursor: grab;
+    transition: opacity 0.4s;
+  }
+  .agent-node:active { cursor: grabbing; }
+  .agent-node.dimmed { opacity: 0.18; }
+
+  .agent-circle {
+    width: 110px; height: 110px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #fff;
+    border: 2.5px solid;
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+    position: relative;
+  }
+  .agent-node:hover .agent-circle { transform: scale(1.1); }
+  .agent-node.selected .agent-circle { transform: scale(1.14); }
+
+  .agent-circle .icon { font-size: 28px; margin-bottom: 1px; }
+  .agent-circle .name {
+    font-size: 10px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  .agent-circle.render {
+    border-color: #00a862;
+    box-shadow: 0 4px 20px rgba(0,168,98,0.12), 0 0 0 6px rgba(0,168,98,0.04);
+  }
+  .agent-circle.render .name { color: #00a862; }
+  .agent-node:hover .agent-circle.render,
+  .agent-node.selected .agent-circle.render {
+    box-shadow: 0 8px 36px rgba(0,168,98,0.2), 0 0 0 10px rgba(0,168,98,0.06);
+  }
+
+  .agent-circle.critique {
+    border-color: #f5a623;
+    box-shadow: 0 4px 20px rgba(245,166,35,0.12), 0 0 0 6px rgba(245,166,35,0.04);
+  }
+  .agent-circle.critique .name { color: #e09500; }
+  .agent-node:hover .agent-circle.critique,
+  .agent-node.selected .agent-circle.critique {
+    box-shadow: 0 8px 36px rgba(245,166,35,0.2), 0 0 0 10px rgba(245,166,35,0.06);
+  }
+
+  .agent-circle.eval {
+    border-color: #9c27b0;
+    box-shadow: 0 4px 20px rgba(156,39,176,0.12), 0 0 0 6px rgba(156,39,176,0.04);
+  }
+  .agent-circle.eval .name { color: #9c27b0; }
+  .agent-node:hover .agent-circle.eval,
+  .agent-node.selected .agent-circle.eval {
+    box-shadow: 0 8px 36px rgba(156,39,176,0.2), 0 0 0 10px rgba(156,39,176,0.06);
+  }
+
+  .agent-circle.registry {
+    border-color: #2196F3;
+    box-shadow: 0 4px 20px rgba(33,150,243,0.12), 0 0 0 6px rgba(33,150,243,0.04);
+  }
+  .agent-circle.registry .name { color: #1976D2; }
+  .agent-node:hover .agent-circle.registry,
+  .agent-node.selected .agent-circle.registry {
+    box-shadow: 0 8px 36px rgba(33,150,243,0.2), 0 0 0 10px rgba(33,150,243,0.06);
+  }
+
+  .agent-circle.designsystem {
+    border-color: #E91E63;
+    box-shadow: 0 4px 20px rgba(233,30,99,0.15), 0 0 0 6px rgba(233,30,99,0.06);
+  }
+  .agent-circle.designsystem .name { color: #C2185B; font-size: 8px; }
+  .agent-node:hover .agent-circle.designsystem,
+  .agent-node.selected .agent-circle.designsystem {
+    box-shadow: 0 8px 36px rgba(233,30,99,0.25), 0 0 0 10px rgba(233,30,99,0.08);
+  }
+
+  /* Satellite functions */
+  .fn-satellite {
+    position: absolute;
+    padding: 5px 12px; border-radius: 10px;
+    font-size: 11px; font-weight: 600;
+    white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.35s, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    transform: scale(0.7);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .agent-node.selected .fn-satellite,
+  .agent-node:hover .fn-satellite {
+    opacity: 1; transform: scale(1);
+  }
+  .fn-satellite.render { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+  .fn-satellite.critique { background: #fff8e1; color: #e65100; border: 1px solid #ffe0b2; }
+  .fn-satellite.eval { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }
+  .fn-satellite.registry { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+  .fn-satellite.designsystem { background: #fce4ec; color: #C2185B; border: 1px solid #f8bbd0; }
+
+  /* Satellite connector lines */
+  .fn-line {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s;
+  }
+  .agent-node.selected .fn-line,
+  .agent-node:hover .fn-line {
+    opacity: 0.3;
+  }
+
+  /* ── Detail Panel ── */
+  .detail-panel {
+    position: absolute; bottom: 20px; right: 20px;
+    width: 300px;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 18px;
+    padding: 22px;
+    z-index: 30;
+    opacity: 0; transform: translateY(8px);
+    transition: all 0.3s;
+    pointer-events: none;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+  }
+  .detail-panel.visible {
+    opacity: 1; transform: translateY(0); pointer-events: auto;
+  }
+  .detail-panel .dp-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px; padding-bottom: 14px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .detail-panel .dp-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .detail-panel h4 { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+  .detail-panel .detail-file {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px; color: #00a862;
+    margin-bottom: 14px;
+    background: #f0faf5;
+    padding: 6px 10px;
+    border-radius: 8px;
+    display: inline-block;
+  }
+  .detail-panel .detail-row { margin-bottom: 12px; }
+  .detail-panel .detail-label {
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.6px;
+    color: #bbb; margin-bottom: 4px;
+  }
+  .detail-panel .detail-value {
+    font-size: 13px; color: #555; line-height: 1.5;
+  }
+  .detail-panel .fn-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+  .detail-panel .fn-tag {
+    font-size: 11px; padding: 4px 10px;
+    border-radius: 8px; font-weight: 600;
+  }
+
+  /* ── Docs ── */
+  .docs-section { margin-bottom: 48px; }
+  .docs-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 24px; }
+
+  .skill-card {
+    background: #fff; border-radius: 16px;
+    border: 1px solid #eee; padding: 24px;
+    margin-bottom: 16px; transition: box-shadow 0.2s;
+  }
+  .skill-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+  .skill-card .skill-header {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 12px;
+  }
+  .skill-card .skill-name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 16px; font-weight: 700; color: #00a862;
+  }
+  .skill-card .skill-agents { display: flex; gap: 6px; }
+  .agent-pill { font-size: 11px; padding: 3px 10px; border-radius: 8px; font-weight: 600; }
+  .agent-pill.render { background: #e8f5e9; color: #2e7d32; }
+  .agent-pill.registry { background: #e3f2fd; color: #1565c0; }
+  .agent-pill.critique { background: #fff3e0; color: #e65100; }
+  .agent-pill.eval { background: #f3e5f5; color: #7b1fa2; }
+
+  .skill-card .skill-desc { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 16px; }
+  .skill-card .usage-block {
+    background: #f8f8f8; border-radius: 10px;
+    padding: 14px 18px; margin-bottom: 8px;
+  }
+  .skill-card .usage-label {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.6px;
+    color: #999; margin-bottom: 6px;
+  }
+  .skill-card .usage-code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px; color: #1a1a1a; line-height: 1.6;
+  }
+  .skill-card .usage-code .comment { color: #bbb; }
+
+  .agents-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .agent-card {
+    background: #fff; border-radius: 14px;
+    border: 1px solid #eee; padding: 20px;
+    transition: box-shadow 0.2s;
+  }
+  .agent-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+  .agent-card .agent-icon-box {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; margin-bottom: 10px;
+  }
+  .agent-card .agent-icon-box.render { background: #e8f5e9; }
+  .agent-card .agent-icon-box.critique { background: #fff3e0; }
+  .agent-card .agent-icon-box.eval { background: #f3e5f5; }
+  .agent-card .agent-icon-box.registry { background: #e3f2fd; }
+  .agent-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .agent-card .agent-file {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px; color: #999; margin-bottom: 8px;
+  }
+  .agent-card p { font-size: 13px; color: #666; line-height: 1.5; }
+  .agent-card .io-section {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .agent-card .io-label {
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    color: #bbb; margin-bottom: 3px;
+  }
+  .agent-card .io-value { font-size: 12px; color: #888; line-height: 1.5; }
+
+  @media (max-width: 700px) {
+    .agents-grid { grid-template-columns: 1fr; }
+    .graph-canvas { height: 520px; }
+    .detail-panel { width: 240px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="left">
+    <a class="back-link" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="breadcrumb">
+      <a href="index.html">Telos</a> / <span class="current">How It Works</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <h1 class="page-title">How It Works</h1>
+  <p class="page-subtitle">5 specialized agents, orchestrated by skill commands. Drag the nodes around. Click to inspect. Switch skills to see different data flows.</p>
+
+  <div class="graph-section">
+    <h2>Agent Graph</h2>
+    <div class="graph-canvas" id="graphCanvas">
+      <div class="graph-bg"></div>
+
+      <div class="skill-tabs">
+        <div class="skill-tab active" data-skill="napkin">/telos-napkin</div>
+        <div class="skill-tab" data-skill="impact-review">/telos-review</div>
+        <div class="skill-tab" data-skill="eval">/telos-eval</div>
+        <div class="skill-tab" data-skill="apply">/telos-apply</div>
+        <div class="skill-tab" data-skill="setup">/telos-setup</div>
+      </div>
+
+      <svg class="graph-svg" id="graphSvg">
+        <defs>
+          <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#00a862" stroke-width="1.5" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#f5a623" stroke-width="1.5" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#9c27b0" stroke-width="1.5" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#2196F3" stroke-width="1.5" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-pink" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#E91E63" stroke-width="1.5" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-dim" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <path d="M0,0.5 L9,3.5 L0,6.5" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+      </svg>
+
+      <div class="graph-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 9l4 4L5 17"/><path d="M9 5l4 4-4 4"/></svg>
+        Drag to rearrange. Click to inspect.
+      </div>
+
+      <div class="detail-panel" id="detailPanel">
+        <div class="dp-header">
+          <div class="dp-dot" id="dpDot"></div>
+          <h4 id="dpTitle"></h4>
+        </div>
+        <div class="detail-file" id="dpFile"></div>
+        <div class="detail-row">
+          <div class="detail-label">Input</div>
+          <div class="detail-value" id="dpInput"></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Output</div>
+          <div class="detail-value" id="dpOutput"></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Functions</div>
+          <div class="fn-list" id="dpFunctions"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="docs-section">
+    <h2>Skills Reference</h2>
+    <div class="skill-card">
+      <div class="skill-header">
+        <span class="skill-name">/telos-setup</span>
+        <div class="skill-agents">
+          <span class="agent-pill" style="background:#fce4ec;color:#C2185B;">Design System</span>
+        </div>
+      </div>
+      <p class="skill-desc">Extract your design system from 3-5 product screenshots. Run this first before creating any flows.</p>
+      <div class="usage-block">
+        <div class="usage-label">Usage</div>
+        <div class="usage-code">
+          /telos-setup<br>
+          <span class="comment"># Then paste 3-5 screenshots of your product</span>
+        </div>
+      </div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-header">
+        <span class="skill-name">/telos-napkin</span>
+        <div class="skill-agents">
+          <span class="agent-pill render">Render</span>
+          <span class="agent-pill registry">Registry</span>
+          <span class="agent-pill critique">Critique</span>
+          <span class="agent-pill eval">Eval</span>
+        </div>
+      </div>
+      <p class="skill-desc">Convert a wireframe screenshot into a styled HTML mockup. Optionally critique it against a KR.</p>
+      <div class="usage-block">
+        <div class="usage-label">Usage</div>
+        <div class="usage-code">
+          /telos-napkin Check-in > Habit List<br>
+          <span class="comment"># With KR (triggers critique + eval)</span><br>
+          /telos-napkin Check-in > Habit List | KR: Increase 7-day retention by 15%
+        </div>
+      </div>
+      <div class="usage-block">
+        <div class="usage-label">What You Need</div>
+        <div class="usage-code">
+          1. A wireframe image (paste or reference)<br>
+          2. Flow name and screen name<br>
+          3. Optionally: a KR to evaluate against
+        </div>
+      </div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-header">
+        <span class="skill-name">/telos-review</span>
+        <div class="skill-agents">
+          <span class="agent-pill critique">Critique</span>
+          <span class="agent-pill eval">Eval</span>
+          <span class="agent-pill registry">Registry</span>
+        </div>
+      </div>
+      <p class="skill-desc">Generate a KR-driven design critique for an existing flow. Evaluates screens against a business goal, not UX heuristics.</p>
+      <div class="usage-block">
+        <div class="usage-label">Usage</div>
+        <div class="usage-code">
+          /telos-review Check-in | KR: Increase 7-day retention by 15%<br>
+          <span class="comment"># With confidence scoring</span><br>
+          /telos-review Onboarding | KR: Increase weekly active streaks | --eval
+        </div>
+      </div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-header">
+        <span class="skill-name">/telos-apply</span>
+        <div class="skill-agents">
+          <span class="agent-pill render">Render</span>
+          <span class="agent-pill registry">Registry</span>
+        </div>
+      </div>
+      <p class="skill-desc">Accept specific recommendations from a critique and regenerate affected screens. Creates versioned screen files tracked in manifest.</p>
+      <div class="usage-block">
+        <div class="usage-label">Usage</div>
+        <div class="usage-code">
+          /telos-apply check-in 2,3<br>
+          /telos-apply onboarding all<br>
+          <span class="comment"># Creates v2 of affected screens</span>
+        </div>
+      </div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-header">
+        <span class="skill-name">/telos-eval</span>
+        <div class="skill-agents">
+          <span class="agent-pill eval">Eval</span>
+          <span class="agent-pill critique">Critique</span>
+        </div>
+      </div>
+      <p class="skill-desc">Score the quality of a critique. Suite mode runs all test cases (dev). Single mode scores one critique (premium).</p>
+      <div class="usage-block">
+        <div class="usage-label">Usage</div>
+        <div class="usage-code">
+          /telos-eval suite<br>
+          /telos-eval single Check-in<br>
+          <span class="comment"># Passing: 24/30 across 6 dimensions</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="docs-section">
+    <h2>Agents</h2>
+    <div class="agents-grid">
+      <div class="agent-card">
+        <div class="agent-icon-box render">&#x1f3a8;</div>
+        <h4>Render Agent</h4>
+        <div class="agent-file">~/.claude/agents/telos/render.md</div>
+        <p>Two modes: Create (wireframe to screen) or Modify (apply changes to existing screen). Reads design system from design-system.json. Outputs versioned files (-v1, -v2).</p>
+        <div class="io-section">
+          <div class="io-label">Input</div>
+          <div class="io-value">Wireframe image or existing screen + modifications</div>
+          <div class="io-label" style="margin-top:6px">Output</div>
+          <div class="io-value">HTML file at projects/.../<name>-v1.html</div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon-box" style="background:#fce4ec;">&#x1f3a8;</div>
+        <h4>Design System Agent</h4>
+        <div class="agent-file">~/.claude/agents/telos/design-system.md</div>
+        <p>Analyzes 3-5 product screenshots and extracts design tokens (colors, typography, radius, components) into design-system.json.</p>
+        <div class="io-section">
+          <div class="io-label">Input</div>
+          <div class="io-value">3-5 product screenshots</div>
+          <div class="io-label" style="margin-top:6px">Output</div>
+          <div class="io-value">design-system.json</div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon-box critique">&#x1f50d;</div>
+        <h4>Critique Agent</h4>
+        <div class="agent-file">~/.claude/agents/telos/critique.md</div>
+        <p>Evaluates flow screens against KRs. Produces a critique card with alignment score, strengths, gaps, and suggestions.</p>
+        <div class="io-section">
+          <div class="io-label">Input</div>
+          <div class="io-value">Screen file paths, KR statement(s)</div>
+          <div class="io-label" style="margin-top:6px">Output</div>
+          <div class="io-value">critique-card.html</div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon-box eval">&#x1f4ca;</div>
+        <h4>Eval Agent</h4>
+        <div class="agent-file">~/.claude/agents/telos/eval.md</div>
+        <p>Scores critique quality using 6 dimensions. Produces confidence badge data. Recommends retry if below threshold.</p>
+        <div class="io-section">
+          <div class="io-label">Input</div>
+          <div class="io-value">Critique content, KR, mode (single/suite)</div>
+          <div class="io-label" style="margin-top:6px">Output</div>
+          <div class="io-value">Score X/30, per-dimension breakdown</div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon-box registry">&#x1f4c1;</div>
+        <h4>Registry Agent</h4>
+        <div class="agent-file">~/.claude/agents/telos/registry.md</div>
+        <p>Syncs outputs to GitHub. Updates manifest.json, walkthroughs, and checks flow ownership. Git pull before work, push after.</p>
+        <div class="io-section">
+          <div class="io-label">Input</div>
+          <div class="io-value">Screen file path, flow/project names</div>
+          <div class="io-label" style="margin-top:6px">Output</div>
+          <div class="io-value">Updated manifest.json, walkthrough.html, git push to GitHub</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('graphCanvas');
+const svg = document.getElementById('graphSvg');
+const canvasRect = () => canvas.getBoundingClientRect();
+
+const AGENTS = {
+  designsystem: {
+    title: 'Design System Agent', file: 'telos/design-system.md', icon: '\u{1F3A8}',
+    color: '#E91E63', colorLight: '#fce4ec', colorText: '#C2185B',
+    input: '3-5 product screenshots',
+    output: 'design-system.json with colors, typography, radius, components',
+    functions: ['Analyze Screenshots', 'Extract Colors', 'Extract Typography', 'Extract Components', 'Write JSON'],
+    x: 0.5, y: 0.28
+  },
+  render: {
+    title: 'Render Agent', file: 'telos/render.md', icon: '\u{1F58C}',
+    color: '#00a862', colorLight: '#e8f5e9', colorText: '#2e7d32',
+    input: 'Wireframe or existing screen + modifications',
+    output: 'Versioned HTML screen (-v1, -v2, ...)',
+    functions: ['Create Mode', 'Modify Mode', 'Read Design System', 'Phone Frame', 'PNG Export'],
+    x: 0.22, y: 0.5
+  },
+  critique: {
+    title: 'Critique Agent', file: 'telos/critique.md', icon: '\u{1F50D}',
+    color: '#f5a623', colorLight: '#fff8e1', colorText: '#e65100',
+    input: 'Screen file paths, KR statement(s), flow name',
+    output: 'critique-card.html with alignment score (1-5)',
+    functions: ['Read Flow Screens', 'Evaluate vs KR', 'Alignment Score', 'Critique Card HTML', 'Impact Tags'],
+    x: 0.78, y: 0.5
+  },
+  eval: {
+    title: 'Eval Agent', file: 'telos/eval.md', icon: '\u{1F4CA}',
+    color: '#9c27b0', colorLight: '#f3e5f5', colorText: '#7b1fa2',
+    input: 'Critique card content, KR, mode (single/suite)',
+    output: 'Score X/30, confidence badge data',
+    functions: ['6-Dimension Scoring', 'Confidence Badge', 'Retry Logic', 'Suite Mode', 'Threshold Check'],
+    x: 0.78, y: 0.82
+  },
+  registry: {
+    title: 'Registry Agent', file: 'telos/registry.md', icon: '\u{1F4C1}',
+    color: '#2196F3', colorLight: '#e3f2fd', colorText: '#1565c0',
+    input: 'Screen file path, flow name, project, version info',
+    output: 'Updated manifest.json, walkthrough.html, git push',
+    functions: ['Git Pull/Push', 'Update Manifest', 'Version Tracking', 'Ownership Check', 'Update Walkthrough'],
+    x: 0.22, y: 0.82
+  }
+};
+
+const EDGES = {
+  napkin: [
+    { from: 'render', to: 'registry', label: 'screen path', order: 1 },
+    { from: 'render', to: 'critique', label: 'screen files', order: 2, optional: true },
+    { from: 'critique', to: 'eval', label: 'critique card', order: 3, optional: true }
+  ],
+  'impact-review': [
+    { from: 'critique', to: 'eval', label: 'critique card', order: 1, optional: true },
+    { from: 'critique', to: 'registry', label: 'update link', order: 2 }
+  ],
+  eval: [
+    { from: 'critique', to: 'eval', label: 'critique card', order: 1 }
+  ],
+  apply: [
+    { from: 'critique', to: 'render', label: 'recommendations', order: 1 },
+    { from: 'render', to: 'registry', label: 'new version', order: 2 }
+  ],
+  setup: [
+    { from: 'designsystem', to: 'render', label: 'design-system.json', order: 1 }
+  ]
+};
+
+const ACTIVE_AGENTS = {
+  napkin: ['designsystem', 'render', 'registry', 'critique', 'eval'],
+  'impact-review': ['critique', 'eval', 'registry'],
+  eval: ['critique', 'eval'],
+  apply: ['designsystem', 'critique', 'render', 'registry'],
+  setup: ['designsystem', 'render']
+};
+
+let nodes = {};
+let selectedNode = null;
+let activeSkill = 'napkin';
+let dragging = null;
+let dragOffset = { x: 0, y: 0 };
+let pulsePhase = 0;
+
+function init() {
+  const rect = canvasRect();
+  const w = rect.width;
+  const h = rect.height;
+
+  Object.keys(AGENTS).forEach(id => {
+    const a = AGENTS[id];
+    const node = document.createElement('div');
+    node.className = 'agent-node';
+    node.dataset.id = id;
+
+    const fns = a.functions.map((f, i) => {
+      const angle = (i / a.functions.length) * Math.PI * 2 - Math.PI / 2;
+      const r = 90;
+      const fx = Math.cos(angle) * r;
+      const fy = Math.sin(angle) * r;
+      return `<div class="fn-satellite ${id}" style="left:${55 + fx}px;top:${55 + fy}px;transform-origin:center;transform:translate(-50%,-50%) scale(0.7);">${f}</div>`;
+    }).join('');
+
+    node.innerHTML = `
+      <div class="agent-circle ${id}">
+        <span class="icon">${a.icon}</span>
+        <span class="name">${id}</span>
+      </div>
+      ${fns}
+    `;
+
+    const px = a.x * w - 55;
+    const py = a.y * h - 55;
+    node.style.left = px + 'px';
+    node.style.top = py + 'px';
+
+    canvas.appendChild(node);
+    nodes[id] = { el: node, x: px, y: py };
+
+    node.addEventListener('mousedown', e => startDrag(id, e));
+    node.addEventListener('touchstart', e => { e.preventDefault(); startDrag(id, e.touches[0]); }, { passive: false });
+    node.addEventListener('click', () => {
+      if (Math.abs(nodes[id].dragDist || 0) < 5) toggleSelect(id);
+    });
+  });
+
+  document.addEventListener('mousemove', e => onDrag(e));
+  document.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); onDrag(e.touches ? e.touches[0] : e); }, { passive: false });
+  document.addEventListener('mouseup', stopDrag);
+  document.addEventListener('touchend', stopDrag);
+
+  document.querySelectorAll('.skill-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.skill-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeSkill = tab.dataset.skill;
+      selectedNode = null;
+      document.getElementById('detailPanel').classList.remove('visible');
+      updateGraph();
+    });
+  });
+
+  updateGraph();
+  animate();
+}
+
+function startDrag(id, e) {
+  e.preventDefault();
+  dragging = id;
+  nodes[id].dragDist = 0;
+  const rect = canvasRect();
+  dragOffset.x = e.clientX - rect.left - nodes[id].x;
+  dragOffset.y = e.clientY - rect.top - nodes[id].y;
+}
+
+function onDrag(e) {
+  if (!dragging) return;
+  const rect = canvasRect();
+  const nx = e.clientX - rect.left - dragOffset.x;
+  const ny = e.clientY - rect.top - dragOffset.y;
+  const dx = nx - nodes[dragging].x;
+  const dy = ny - nodes[dragging].y;
+  nodes[dragging].dragDist = (nodes[dragging].dragDist || 0) + Math.abs(dx) + Math.abs(dy);
+  nodes[dragging].x = Math.max(-20, Math.min(rect.width - 90, nx));
+  nodes[dragging].y = Math.max(50, Math.min(rect.height - 90, ny));
+  nodes[dragging].el.style.left = nodes[dragging].x + 'px';
+  nodes[dragging].el.style.top = nodes[dragging].y + 'px';
+  drawEdges();
+}
+
+function stopDrag() { dragging = null; }
+
+function toggleSelect(id) {
+  if (selectedNode === id) {
+    selectedNode = null;
+    document.getElementById('detailPanel').classList.remove('visible');
+  } else {
+    selectedNode = id;
+    showDetail(id);
+  }
+  updateGraph();
+}
+
+function showDetail(id) {
+  const a = AGENTS[id];
+  const panel = document.getElementById('detailPanel');
+  document.getElementById('dpDot').style.background = a.color;
+  document.getElementById('dpTitle').textContent = a.title;
+  document.getElementById('dpFile').textContent = a.file;
+  document.getElementById('dpInput').textContent = a.input;
+  document.getElementById('dpOutput').textContent = a.output;
+  document.getElementById('dpFunctions').innerHTML = a.functions.map(f =>
+    `<span class="fn-tag" style="background:${a.colorLight};color:${a.colorText};">${f}</span>`
+  ).join('');
+  panel.classList.add('visible');
+}
+
+function updateGraph() {
+  const active = ACTIVE_AGENTS[activeSkill];
+  Object.keys(nodes).forEach(id => {
+    nodes[id].el.classList.toggle('dimmed', !active.includes(id));
+    nodes[id].el.classList.toggle('selected', selectedNode === id);
+  });
+  drawEdges();
+}
+
+function drawEdges() {
+  svg.querySelectorAll('.edge-line, .edge-label, .pulse-dot').forEach(el => el.remove());
+
+  const edges = EDGES[activeSkill] || [];
+  const active = ACTIVE_AGENTS[activeSkill];
+  const CX = 55;
+
+  const allPairs = [];
+  Object.keys(nodes).forEach(a => {
+    Object.keys(nodes).forEach(b => {
+      if (a >= b) return;
+      allPairs.push([a, b]);
+    });
+  });
+
+  allPairs.forEach(([a, b]) => {
+    const bothActive = active.includes(a) && active.includes(b);
+    const edge = edges.find(e => (e.from === a && e.to === b) || (e.from === b && e.to === a));
+
+    const ax = nodes[a].x + CX, ay = nodes[a].y + CX;
+    const bx = nodes[b].x + CX, by = nodes[b].y + CX;
+    const dx = bx - ax, dy = by - ay;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 1) return;
+    const ux = dx/dist, uy = dy/dist;
+    const r = 60;
+    const sx = ax + ux*r, sy = ay + uy*r;
+    const ex = bx - ux*r, ey = by - uy*r;
+
+    if (edge && bothActive) {
+      const isFrom = edge.from === a;
+      const fromCol = AGENTS[edge.from].color;
+      const markerMap = { '#00a862':'arr-green', '#f5a623':'arr-amber', '#9c27b0':'arr-purple', '#2196F3':'arr-blue', '#E91E63':'arr-pink' };
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.classList.add('edge-line');
+      line.setAttribute('x1', isFrom ? sx : ex);
+      line.setAttribute('y1', isFrom ? sy : ey);
+      line.setAttribute('x2', isFrom ? ex : sx);
+      line.setAttribute('y2', isFrom ? ey : sy);
+      line.setAttribute('stroke', fromCol);
+      line.setAttribute('stroke-width', edge.optional ? '1.5' : '2.5');
+      line.setAttribute('opacity', edge.optional ? '0.35' : '0.55');
+      if (edge.optional) line.setAttribute('stroke-dasharray', '8,5');
+      line.setAttribute('marker-end', `url(#${markerMap[fromCol]})`);
+      svg.appendChild(line);
+
+      const mx = (sx+ex)/2, my = (sy+ey)/2;
+      const perpX = -uy * 14, perpY = ux * 14;
+
+      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      const lbl = edge.label + (edge.optional ? ' (optional)' : '');
+      const tw = lbl.length * 5.5 + 16;
+      bg.classList.add('edge-label');
+      bg.setAttribute('x', mx + perpX - tw/2);
+      bg.setAttribute('y', my + perpY - 10);
+      bg.setAttribute('width', tw);
+      bg.setAttribute('height', 18);
+      bg.setAttribute('rx', 5);
+      bg.setAttribute('fill', '#fff');
+      bg.setAttribute('stroke', '#e8e8e8');
+      bg.setAttribute('stroke-width', '1');
+      svg.appendChild(bg);
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.classList.add('edge-label');
+      text.setAttribute('x', mx + perpX);
+      text.setAttribute('y', my + perpY + 3);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('fill', '#999');
+      text.setAttribute('font-size', '10');
+      text.setAttribute('font-weight', '500');
+      text.setAttribute('font-family', '-apple-system, sans-serif');
+      text.textContent = lbl;
+      svg.appendChild(text);
+
+      const t = (Math.sin(pulsePhase * 1.5 + edge.order * 1.8) + 1) / 2;
+      const x1 = isFrom ? sx : ex, y1 = isFrom ? sy : ey;
+      const x2 = isFrom ? ex : sx, y2 = isFrom ? ey : sy;
+      const px = x1*(1-t) + x2*t;
+      const py = y1*(1-t) + y2*t;
+
+      const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      glow.classList.add('pulse-dot');
+      glow.setAttribute('cx', px);
+      glow.setAttribute('cy', py);
+      glow.setAttribute('r', '6');
+      glow.setAttribute('fill', fromCol);
+      glow.setAttribute('opacity', '0.12');
+      svg.appendChild(glow);
+
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.classList.add('pulse-dot');
+      dot.setAttribute('cx', px);
+      dot.setAttribute('cy', py);
+      dot.setAttribute('r', '3');
+      dot.setAttribute('fill', fromCol);
+      dot.setAttribute('opacity', '0.7');
+      svg.appendChild(dot);
+    } else if (bothActive) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.classList.add('edge-line');
+      line.setAttribute('x1', sx); line.setAttribute('y1', sy);
+      line.setAttribute('x2', ex); line.setAttribute('y2', ey);
+      line.setAttribute('stroke', '#e8e8e8');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-dasharray', '3,4');
+      svg.appendChild(line);
+    }
+  });
+}
+
+function animate() {
+  pulsePhase += 0.02;
+  drawEdges();
+  requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', () => {
+  const rect = canvasRect();
+  Object.keys(nodes).forEach(id => {
+    const a = AGENTS[id];
+    nodes[id].x = a.x * rect.width - 55;
+    nodes[id].y = a.y * rect.height - 55;
+    nodes[id].el.style.left = nodes[id].x + 'px';
+    nodes[id].el.style.top = nodes[id].y + 'px';
+  });
+  drawEdges();
+});
+
+init();
+</script>
+
+</body>
+</html>

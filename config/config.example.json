@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "identity": { "name": "Jane Okafor", "email": "jane@acme.com" },
+  "sync": "github",
+  "workspace": "/Users/jane/telos-acme-flows",
+  "repo": {
+    "url": "https://github.com/acme-squad/telos-flows.git",
+    "branch": "main",
+    "pagesUrl": "https://acme-squad.github.io/telos-flows/"
+  },
+  "designSystem": "design-system.json",
+  "defaultProject": "acme-app",
+  "team": "Acme Growth",
+  "figmaToken": null
+}

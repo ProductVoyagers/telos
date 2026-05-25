@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impact Review — Check-in Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  .screen-topbar {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .screen-topbar .nav-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .screen-topbar .back-link {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #e8e8e8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #555;
+    transition: background 0.15s;
+  }
+  .screen-topbar .back-link:hover { background: #ddd; }
+  .screen-topbar .back-link svg { width: 18px; height: 18px; }
+  .screen-topbar .breadcrumb {
+    font-size: 13px;
+    color: #999;
+  }
+  .screen-topbar .breadcrumb a { color: #999; text-decoration: none; }
+  .screen-topbar .breadcrumb a:hover { color: #00a862; }
+  .screen-topbar .breadcrumb .current { color: #1a1a1a; font-weight: 600; }
+
+  .critique-card {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    overflow: hidden;
+    border: 1px solid #e8e8e8;
+  }
+
+  /* KR Header */
+  .kr-header {
+    background: #1a1a1a;
+    padding: 24px;
+    color: #fff;
+  }
+  .kr-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #888;
+    margin-bottom: 10px;
+  }
+  .kr-item {
+    margin-bottom: 10px;
+    padding-left: 12px;
+    border-left: 3px solid #555;
+  }
+  .kr-item:last-of-type { margin-bottom: 0; }
+  .kr-item.ret { border-color: #90caf9; }
+  .kr-item.eng { border-color: #a5d6a7; }
+  .kr-item .kr-tag {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+  }
+  .kr-item.ret .kr-tag { color: #90caf9; }
+  .kr-item.eng .kr-tag { color: #a5d6a7; }
+  .kr-item .kr-text {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #fff;
+  }
+  .kr-model {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #888;
+    line-height: 1.4;
+  }
+  .kr-flow {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #888;
+  }
+  .kr-flow .flow-tag {
+    background: #333;
+    padding: 3px 10px;
+    border-radius: 6px;
+    color: #ccc;
+    font-weight: 500;
+  }
+
+  /* Alignment Score */
+  .alignment-section {
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .alignment-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+  .alignment-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .alignment-dots .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #eee;
+  }
+  .alignment-dots .dot.filled { background: #f5a623; }
+  .alignment-verdict {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f5a623;
+    margin-left: 8px;
+  }
+
+  /* Sections */
+  .section {
+    padding: 20px 24px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .section:last-child { border-bottom: none; }
+  .section-header {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #999;
+    margin-bottom: 14px;
+  }
+  .section-header.green { color: #2e7d32; }
+  .section-header.amber { color: #f5a623; }
+  .section-header.blue { color: #2196F3; }
+
+  /* Items */
+  .item {
+    margin-bottom: 16px;
+  }
+  .item:last-child { margin-bottom: 0; }
+  .item-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .item-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .item-dot.green { background: #2e7d32; }
+  .rec-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .rec-num.amber { background: #f5a623; }
+  .rec-num.blue { background: #2196F3; }
+  .item-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.4;
+  }
+  .item-body {
+    font-size: 14px;
+    color: #333;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+  .screen-ref {
+    font-size: 11px;
+    color: #999;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .impact-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .impact-level {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .impact-level.high { color: #d32f2f; }
+  .impact-level.medium { color: #f5a623; }
+  .impact-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .impact-tag.retention { background: #e3f2fd; color: #1565c0; }
+  .impact-tag.engagement { background: #e8f5e9; color: #2e7d32; }
+  .impact-tag.activation { background: #fff3e0; color: #e65100; }
+
+  /* Footer */
+  .critique-footer {
+    padding: 16px 24px;
+    background: #fafafa;
+    border-top: 1px solid #f0f0f0;
+    font-size: 11px;
+    color: #999;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="screen-topbar">
+  <div class="nav-left">
+    <a class="back-link" href="../../index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="breadcrumb">
+      <a href="../../index.html">Streak</a> / <span class="current">Check-in Impact Review</span>
+    </div>
+  </div>
+</div>
+
+<div class="critique-card">
+
+  <!-- KR Header -->
+  <div class="kr-header">
+    <div class="kr-label">Key Results</div>
+    <div class="kr-item ret">
+      <div class="kr-tag">KR 1: Retention</div>
+      <div class="kr-text">Increase 7-day retention</div>
+    </div>
+    <div class="kr-item eng">
+      <div class="kr-tag">KR 2: Engagement</div>
+      <div class="kr-text">Increase weekly active streaks</div>
+    </div>
+    <div class="kr-model">Model: a daily habit tracker. The "Today" screen lists the day's habits with one-tap check circles, a streak banner at the top, and a bottom tab bar (Today / Habits / Stats / Me).</div>
+    <div class="kr-flow">
+      <span class="flow-tag">Check-in Flow</span>
+      1 screen
+    </div>
+  </div>
+
+  <!-- Alignment Score: 3/5 -->
+  <div class="alignment-section">
+    <span class="alignment-label">KR Alignment</span>
+    <div class="alignment-dots">
+      <div class="dot filled"></div>
+      <div class="dot filled"></div>
+      <div class="dot filled"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <span class="alignment-verdict">Partial</span>
+    </div>
+  </div>
+
+  <!-- What Serves the KRs -->
+  <div class="section">
+    <div class="section-header green">What Serves the KRs</div>
+
+    <div class="item">
+      <div class="item-header">
+        <div class="item-dot green"></div>
+        <div class="item-title">The streak banner ("5-day streak") is the first thing the user sees.</div>
+      </div>
+      <div class="item-body">
+        Placing the streak at the very top, above the habits, makes the thing the user has to lose the most prominent element on screen. Loss aversion is the strongest lever a habit app has for daily return: people come back to protect a streak more reliably than to chase a new reward. Surfacing it immediately is the right call for 7-day retention.
+      </div>
+      <span class="screen-ref">Today</span>
+      <div class="impact-bar">
+        <span class="impact-tag retention">Retention</span>
+        <span class="impact-tag engagement">Engagement</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="item-header">
+        <div class="item-dot green"></div>
+        <div class="item-title">One-tap check-off keeps the cost of a daily visit near zero.</div>
+      </div>
+      <div class="item-body">
+        Each habit completes with a single tap on the check circle, with no confirmation step or modal. The lower the effort per check-in, the more likely the behavior survives a busy day. For a habit that must repeat daily to build retention, removing friction from the core action directly supports both KRs.
+      </div>
+      <span class="screen-ref">Today</span>
+      <div class="impact-bar">
+        <span class="impact-tag engagement">Engagement</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- What to Reconsider -->
+  <div class="section">
+    <div class="section-header amber">What to Reconsider</div>
+
+    <div class="item" id="rec-1">
+      <div class="item-header">
+        <div class="rec-num amber">1</div>
+        <div class="item-title">Nothing on the screen gives the user a reason to come back tomorrow.</div>
+      </div>
+      <div class="item-body">
+        The "Today" screen shows the current day's state, but once habits are checked off there is no forward hook: no "your streak continues tomorrow," no preview of tomorrow's plan, no sense of momentum beyond today. Retention is a tomorrow problem, and the screen only speaks to today. A user who finishes their habits has no reason on-screen to return — they're relying entirely on memory or an external reminder.
+      </div>
+      <span class="screen-ref">Today — after all habits checked</span>
+      <div class="impact-bar">
+        <span class="impact-level high">HIGH IMPACT</span>
+        <span class="impact-tag retention">Retention</span>
+      </div>
+      <div class="telos-comments" data-rec="1"></div>
+    </div>
+
+    <div class="item" id="rec-2">
+      <div class="item-header">
+        <div class="rec-num amber">2</div>
+        <div class="item-title">A single missed day resets the streak to zero with nothing to soften the loss.</div>
+      </div>
+      <div class="item-body">
+        The streak is the only progress signal, which makes it brittle. The day a user misses, "5-day streak" becomes "0" — and the very mechanic that drove them back becomes a reason to quit, because the cost of restarting feels high. The biggest retention cliff in habit apps is the day after the first miss. With no streak-freeze, grace day, or "you've still done 6 of the last 7 days" framing, a single slip reads as total failure.
+      </div>
+      <span class="screen-ref">Today — streak banner</span>
+      <div class="impact-bar">
+        <span class="impact-level high">HIGH IMPACT</span>
+        <span class="impact-tag retention">Retention</span>
+      </div>
+      <div class="telos-comments" data-rec="2"></div>
+    </div>
+
+    <div class="item" id="rec-3">
+      <div class="item-header">
+        <div class="rec-num amber">3</div>
+        <div class="item-title">The streak is the only measure of progress — there's no weekly or longer-horizon signal.</div>
+      </div>
+      <div class="item-body">
+        "5-day streak" and "2 / 4 done" both describe a single point in time. There is no view of the week (e.g. "5 of 7 days active") that would let a user who broke a streak still feel they're winning. A second, more forgiving progress signal gives engaged users something to grow even when the streak resets, which is exactly the KR 2 behavior (weekly active streaks) the app is trying to move.
+      </div>
+      <span class="screen-ref">Today — streak banner</span>
+      <div class="impact-bar">
+        <span class="impact-level medium">MEDIUM IMPACT</span>
+        <span class="impact-tag engagement">Engagement</span>
+      </div>
+      <div class="telos-comments" data-rec="3"></div>
+    </div>
+
+    <div class="item" id="rec-4">
+      <div class="item-header">
+        <div class="rec-num amber">4</div>
+        <div class="item-title">No reminder or notification opt-in appears anywhere in the flow.</div>
+      </div>
+      <div class="item-body">
+        Daily return for a habit app is almost entirely driven by a timely reminder, yet the screen never asks for notification permission or lets the user set a habit time. Without it, retention depends on the user remembering to open the app unprompted — the weakest possible mechanism. The reminder ask is the single highest-leverage retention element and it is absent.
+      </div>
+      <span class="screen-ref">Flow-level</span>
+      <div class="impact-bar">
+        <span class="impact-level high">HIGH IMPACT</span>
+        <span class="impact-tag retention">Retention</span>
+      </div>
+      <div class="telos-comments" data-rec="4"></div>
+    </div>
+
+    <div class="item" id="rec-5">
+      <div class="item-header">
+        <div class="rec-num amber">5</div>
+        <div class="item-title">The late-day "still incomplete" state isn't designed for — there's no nudge when habits are unfinished.</div>
+      </div>
+      <div class="item-body">
+        At "2 / 4 done" the screen looks identical whether it's 9am or 9pm. There's no escalation as the day runs out and the streak is at risk — no "2 habits left to keep your streak" prompt. The moment a streak is in danger is the moment a well-timed nudge matters most, and right now that moment passes silently.
+      </div>
+      <span class="screen-ref">Today — partial completion</span>
+      <div class="impact-bar">
+        <span class="impact-level medium">MEDIUM IMPACT</span>
+        <span class="impact-tag retention">Retention</span>
+        <span class="impact-tag engagement">Engagement</span>
+      </div>
+      <div class="telos-comments" data-rec="5"></div>
+    </div>
+  </div>
+
+  <!-- Suggestions -->
+  <div class="section">
+    <div class="section-header blue">Suggestions Tied to the KRs</div>
+
+    <div class="item" id="rec-6">
+      <div class="item-header">
+        <div class="rec-num blue">6</div>
+        <div class="item-title">Ask for notification permission during onboarding, tied to the user's chosen habit time.</div>
+      </div>
+      <div class="item-body">
+        When the user adds their first habit, let them pick a time and request notifications in the same step, framed as "We'll remind you at 8am." A reminder set to the moment the habit actually happens is the strongest driver of next-day return. This is the most direct lever on 7-day retention available.
+      </div>
+      <div class="impact-bar">
+        <span class="impact-tag retention">Retention</span>
+        <span class="impact-tag activation">Activation</span>
+      </div>
+      <div class="telos-comments" data-rec="6"></div>
+    </div>
+
+    <div class="item" id="rec-7">
+      <div class="item-header">
+        <div class="rec-num blue">7</div>
+        <div class="item-title">Add a streak-freeze / grace day so one miss doesn't reset progress to zero.</div>
+      </div>
+      <div class="item-body">
+        Give users a small number of "freezes" that automatically protect a streak on a missed day (earned by consistency). The day after a miss is the biggest churn cliff — softening it keeps users in the loop long enough to rebuild the habit, directly protecting 7-day retention without diluting the streak's motivational pull.
+      </div>
+      <div class="impact-bar">
+        <span class="impact-tag retention">Retention</span>
+      </div>
+      <div class="telos-comments" data-rec="7"></div>
+    </div>
+
+    <div class="item" id="rec-8">
+      <div class="item-header">
+        <div class="rec-num blue">8</div>
+        <div class="item-title">Show a weekly progress signal ("5 of 7 days") alongside the streak.</div>
+      </div>
+      <div class="item-body">
+        Add a forgiving, week-level measure next to the current streak. It gives users who slipped a streak something they're still winning at, and it makes "weekly active streaks" (KR 2) a visible goal the user can aim for, not just an internal metric. Pair it with the streak rather than replacing it.
+      </div>
+      <div class="impact-bar">
+        <span class="impact-tag engagement">Engagement</span>
+        <span class="impact-tag retention">Retention</span>
+      </div>
+      <div class="telos-comments" data-rec="8"></div>
+    </div>
+
+    <div class="item" id="rec-9">
+      <div class="item-header">
+        <div class="rec-num blue">9</div>
+        <div class="item-title">Add an end-of-day nudge state: "2 habits left to keep your streak."</div>
+      </div>
+      <div class="item-body">
+        When habits remain unfinished and the day is running out, escalate the screen (and a notification) to make the streak-at-risk explicit. Tie the message to the streak the user is protecting. This converts the highest-intent moment — streak in danger — into a completed check-in, serving both KRs at once.
+      </div>
+      <div class="impact-bar">
+        <span class="impact-tag retention">Retention</span>
+        <span class="impact-tag engagement">Engagement</span>
+      </div>
+      <div class="telos-comments" data-rec="9"></div>
+    </div>
+  </div>
+
+  <!-- General Feedback -->
+  <div class="section">
+    <div class="section-header" style="color: #555;">Expert Feedback</div>
+    <div class="item-body" style="font-size: 12px; color: #999; margin-bottom: 10px;">
+      Share feedback the critique missed, add context from your domain expertise, or flag considerations for the next review.
+    </div>
+    <div class="telos-comments" data-rec="general"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="critique-footer">
+    Screens reviewed: Today<br>
+    Date: May 25, 2026
+  </div>
+
+</div>
+
+<link rel="stylesheet" href="/comments.css">
+<script src="/comments.js"></script>
+<script>initComments('streak/check-in');</script>
+
+</body>
+</html>

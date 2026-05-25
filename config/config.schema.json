@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Telos user config (~/.telos/config.json)",
+  "description": "Per-user, per-machine config. Never committed to a workspace repo. Holds identity + secrets + where Telos reads/writes.",
+  "type": "object",
+  "required": ["schemaVersion", "identity", "sync", "workspace", "designSystem"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "identity": {
+      "type": "object",
+      "required": ["name", "email"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "minLength": 3 }
+      }
+    },
+    "sync": { "enum": ["local", "github"] },
+    "workspace": { "type": "string", "minLength": 1 },
+    "repo": {
+      "type": "object",
+      "required": ["url"],
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": "string", "minLength": 1 },
+        "branch": { "type": "string" },
+        "pagesUrl": { "type": ["string", "null"] }
+      }
+    },
+    "designSystem": { "type": "string", "minLength": 1 },
+    "defaultProject": { "type": ["string", "null"] },
+    "team": { "type": ["string", "null"], "description": "Team/squad label shown in the hub header. Captured at /telos-setup." },
+    "figmaToken": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "sync": { "const": "github" } }, "required": ["sync"] },
+      "then": { "required": ["repo"] }
+    }
+  ]
+}
