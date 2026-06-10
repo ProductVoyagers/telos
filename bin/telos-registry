@@ -380,13 +380,40 @@ def mutate_set_critique(cfg, project_slug, flow_slug, alignment, verdict, kr, ha
 TEMPLATE_FILES = {
     "index.html": "index.html",
     "how-it-works.html": "how-it-works.html",
-    "comments.js": "comments.js",
     "comments.css": "comments.css",
+}
+
+# comments.js is rendered (not copied verbatim) so the per-install Giscus IDs
+# from config get substituted in. Leaving the placeholders unsubstituted makes
+# the widget render its disabled "connect a repo to enable" state.
+GISCUS_SUBS = {
+    "__TELOS_GISCUS_REPO__": "repo",
+    "__TELOS_GISCUS_REPO_ID__": "repoId",
+    "__TELOS_GISCUS_CATEGORY__": "category",
+    "__TELOS_GISCUS_CATEGORY_ID__": "categoryId",
 }
 
 
 def _tpl(name):
     return plugin_root() / "templates" / name
+
+
+def render_comments_js(cfg):
+    """Write <workspace>/comments.js with the install's Giscus IDs substituted in.
+    Always overwrites, so re-running setup after connecting comments propagates.
+    With no `comments` config the placeholders stay and the widget shows its
+    disabled state (the page still works, comments are just off)."""
+    src = _tpl("comments.js")
+    if not src.exists():
+        return None
+    out = src.read_text()
+    c = cfg.get("comments") or {}
+    for placeholder, key in GISCUS_SUBS.items():
+        val = c.get(key) or ""
+        out = out.replace(placeholder, html.escape(val, quote=True))
+    dest = workspace_path(cfg) / "comments.js"
+    dest.write_text(out)
+    return dest
 
 
 def ensure_project_index(cfg, project_slug):
@@ -447,6 +474,9 @@ def regen_derived(cfg, m):
     """Regenerate every derived file (project indexes + walkthroughs) from the manifest.
     Idempotent and brute-force, so it always matches the manifest even after a merge."""
     paths = []
+    cjs = render_comments_js(cfg)
+    if cjs:
+        paths.append(cjs)
     for pslug, p in (m.get("projects") or {}).items():
         paths.append(ensure_project_index(cfg, pslug))
         pname = p.get("name") or titleize(pslug)
@@ -461,7 +491,6 @@ def scaffold_workspace(cfg):
     ws = workspace_path(cfg)
     ws.mkdir(parents=True, exist_ok=True)
     (ws / "projects").mkdir(exist_ok=True)
-    (ws / "comments").mkdir(exist_ok=True)
 
     troot = plugin_root() / "templates"
     copied = []
@@ -471,6 +500,11 @@ def scaffold_workspace(cfg):
         if src.exists() and not dest.exists():
             shutil.copy2(src, dest)
             copied.append(dest_name)
+
+    # Rendered (not copied) so per-install Giscus IDs are substituted in;
+    # always overwrites so reconnecting comments at setup propagates.
+    if render_comments_js(cfg):
+        copied.append("comments.js")
 
     ds_dest = ws / cfg["designSystem"]
     ds_src = troot / "design-system.default.json"

@@ -28,7 +28,7 @@ Delegate to the **`telos-critique`** subagent, passing:
 - critique template: `${CLAUDE_PLUGIN_ROOT}/templates/critique-card-template.html`
 - review template: `${CLAUDE_PLUGIN_ROOT}/templates/review-template.html`
 - output dir: the flow directory
-- comments path (if it exists): `<workspace>/comments/<project-slug>/<flow-slug>.json`
+- the project + flow slugs (the worker pulls any prior reviewer feedback itself from GitHub Discussions via `gh`, if comments are configured in `~/.telos/config.json`)
 
 It writes `critique-card.html` + `review.html` and reports the alignment score + recommendation count.
 

@@ -42,15 +42,16 @@ Write `~/.telos/config.json` matching `${CLAUDE_PLUGIN_ROOT}/config/config.schem
   "designSystem": "design-system.json",
   "defaultProject": "<slug>",
   "team": "<team label or null>",
-  "figmaToken": null
+  "figmaToken": null,
+  "comments": null
 }
 ```
 
-(Add the `repo` block only in connected mode.) Create `~/.telos/` if needed.
+(Add the `repo` block only in connected mode. Leave `comments` as `null` for now — Step 6 fills it if they want comments.) Create `~/.telos/` if needed.
 
 ## Step 4 — Scaffold the workspace
 
-Run `telos-registry init`. This creates the workspace, copies the hub templates (index, project-index source, walkthrough source, comments, how-it-works), and writes an empty `manifest.json`. In connected mode it clones the repo and pushes the initial scaffold.
+Run `telos-registry init`. This creates the workspace, copies the hub templates (index, project-index source, walkthrough source, how-it-works), renders `comments.js` from config, and writes an empty `manifest.json`. In connected mode it clones the repo and pushes the initial scaffold.
 
 ## Step 5 — Extract the design system
 
@@ -60,14 +61,37 @@ Delegate to the **`telos-design-system`** subagent, passing: the screenshots, th
 
 Show the extracted tokens back (colors, font, radius, frame, components). If anything's off, edit `design-system.json` directly.
 
-## Step 6 — Confirm
+## Step 6 — Connect comments (optional, connected mode only)
+
+Impact-review pages can carry inline comments per recommendation, backed by **GitHub Discussions via [Giscus](https://giscus.app)**. Each viewer signs in with their own GitHub account — **no tokens, API keys, or secrets ever touch the page**. The two IDs captured here (`repoId`, `categoryId`) are public identifiers, not credentials. Comments are a squad feature; **fine to skip for solo use** (the widget shows a disabled "connect a repo to enable" state until configured).
+
+Only offer this in connected mode (it needs a GitHub repo with Pages). Ask: *"Want inline comments on your review pages? Reviewers sign in with their own GitHub — no tokens stored."* If yes, walk them through it (most steps are on github.com / giscus.app, so guide, don't automate):
+
+1. **Enable Discussions** on the repo: Settings → Features → check **Discussions**.
+2. **Install the Giscus app**: open <https://github.com/apps/giscus> → Install → pick the same repo → grant *Read access to metadata* + *Read and write access to Discussions* (no code access).
+3. **Get the two IDs**: open <https://giscus.app>, enter the repo (must show "meets all criteria"), set **Mapping = "Discussion title contains a specific term"** and **Category = General**. Copy the generated `data-repo-id` and `data-category-id`.
+4. **Write them to config** — add the `comments` block to `~/.telos/config.json`:
+
+```json
+"comments": {
+  "provider": "giscus",
+  "repo": "<owner>/<repo>",
+  "repoId": "R_xxxxxxxx",
+  "category": "General",
+  "categoryId": "DIC_xxxxxxxx"
+}
+```
+
+5. **Re-render** so pages pick up the IDs: run `telos-registry init` again (it overwrites `comments.js` from config, idempotently). Then push.
+
+The discussion threads auto-create on first comment, one per recommendation (term `<project>/<flow>/rec-<N>`). The critique loop reads them back via `gh` GraphQL on the next run — see `telos-critique`.
+
+## Step 7 — Confirm
 
 Tell the user setup is done and what's next:
 - Local: "Run `/telos-napkin` to make your first screen, or just talk to `/telos` (ask it to open your hub anytime)."
-- Connected: also give them the Pages URL and remind them to enable GitHub Pages on the repo if they haven't.
-
-> Note (squad/comments): in connected mode, the hub's comment threads are GitHub-backed. The owner/repo/branch placeholders in `comments.js` get filled from config; a GitHub token for comments is handled separately and never committed. (Comments are a squad feature — fine to skip for solo use.)
+- Connected: also give them the Pages URL and remind them to enable GitHub Pages on the repo if they haven't. If they connected comments, note that threads appear under each recommendation once published.
 
 ## Done
 
-Report: identity, team, sync mode, workspace path, design-system name + token count, and the next command. Keep it short.
+Report: identity, team, sync mode, workspace path, design-system name + token count, comments (on/off), and the next command. Keep it short.

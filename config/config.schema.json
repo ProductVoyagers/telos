@@ -31,7 +31,20 @@
     "designSystem": { "type": "string", "minLength": 1 },
     "defaultProject": { "type": ["string", "null"] },
     "team": { "type": ["string", "null"], "description": "Team/squad label shown in the hub header. Captured at /telos-setup." },
-    "figmaToken": { "type": ["string", "null"] }
+    "figmaToken": { "type": ["string", "null"] },
+    "comments": {
+      "type": ["object", "null"],
+      "description": "Optional. Inline comments on impact-review pages, backed by GitHub Discussions via Giscus. No tokens or secrets — repoId/categoryId are public identifiers. Only meaningful in connected (github) mode. Captured at /telos-setup.",
+      "required": ["provider", "repo", "repoId", "categoryId"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "const": "giscus" },
+        "repo": { "type": "string", "minLength": 3, "description": "owner/name of the repo with Discussions enabled (hosts the comment threads)." },
+        "repoId": { "type": "string", "minLength": 1, "description": "Public repo id from giscus.app, e.g. R_xxxx." },
+        "category": { "type": "string", "minLength": 1, "default": "General", "description": "Discussion category name." },
+        "categoryId": { "type": "string", "minLength": 1, "description": "Public category id from giscus.app, e.g. DIC_xxxx." }
+      }
+    }
   },
   "allOf": [
     {
