@@ -245,6 +245,30 @@
   .impact-tag.engagement { background: #e8f5e9; color: #2e7d32; }
   .impact-tag.activation { background: #fff3e0; color: #e65100; }
 
+  /* Progressive disclosure — "How did I get this?" */
+  details.how {
+    margin-top: 8px;
+    border-top: 1px dashed #eee;
+    padding-top: 8px;
+  }
+  details.how > summary {
+    font-size: 11px;
+    font-weight: 600;
+    color: #2196F3;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  details.how > summary::-webkit-details-marker { display: none; }
+  details.how > summary::before { content: "▸ "; }
+  details.how[open] > summary::before { content: "▾ "; }
+  details.how .how-body {
+    font-size: 12px;
+    color: #777;
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+
   /* Footer */
   .critique-footer {
     padding: 16px 24px;
@@ -353,6 +377,10 @@
         <span class="impact-level high">HIGH IMPACT</span>
         <span class="impact-tag retention">Retention</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">The "Today" screen renders only the current day's habits and streak banner — I looked for any element pointing past today (a "tomorrow" preview, a next-milestone marker) and found none. Retention is measured on day 7, so a screen that never references the future has no on-screen mechanism pulling the user back. Add a forward hook and I'd expect next-day return to rise.</div>
+      </details>
       <div class="telos-comments" data-rec="1"></div>
     </div>
 
@@ -369,6 +397,10 @@
         <span class="impact-level high">HIGH IMPACT</span>
         <span class="impact-tag retention">Retention</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">The streak banner is the only progress element on the screen and it reads as a single integer. With nothing else tracking consistency, a missed day flips "5-day streak" to "0" — the exact mechanic driving return becomes the reason to quit. The day-after-first-miss is the known churn cliff for habit apps, so this is HIGH for 7-day retention. A streak-freeze or grace day would blunt it.</div>
+      </details>
       <div class="telos-comments" data-rec="2"></div>
     </div>
 
@@ -385,6 +417,10 @@
         <span class="impact-level medium">MEDIUM IMPACT</span>
         <span class="impact-tag engagement">Engagement</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">Both signals on screen — "5-day streak" and "2 / 4 done" — describe a single moment; I found no week-level view. KR 2 is literally "weekly active streaks," so the metric the app wants to move isn't visible to the user anywhere. It's MEDIUM, not HIGH, because the streak still carries daily motivation; a weekly signal mainly helps the user who already broke a streak keep going.</div>
+      </details>
       <div class="telos-comments" data-rec="3"></div>
     </div>
 
@@ -401,6 +437,10 @@
         <span class="impact-level high">HIGH IMPACT</span>
         <span class="impact-tag retention">Retention</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">I traced the whole flow for any notification opt-in or habit-time setting and found none — the screen assumes the user returns unprompted. For a daily habit, a timed reminder is the single strongest driver of next-day return, so its absence is HIGH for 7-day retention. Tagged Flow-level because the fix belongs in onboarding, not on the "Today" screen.</div>
+      </details>
       <div class="telos-comments" data-rec="4"></div>
     </div>
 
@@ -418,6 +458,10 @@
         <span class="impact-tag retention">Retention</span>
         <span class="impact-tag engagement">Engagement</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">The "2 / 4 done" state has no time dimension — the screen is identical at 9am and 9pm. I looked for any end-of-day escalation and found none, so the highest-intent moment (streak about to break tonight) passes silently. MEDIUM because it depends on the reminder infrastructure in rec 4 existing first; once it does, a late-day nudge converts at-risk streaks into completed check-ins.</div>
+      </details>
       <div class="telos-comments" data-rec="5"></div>
     </div>
   </div>
@@ -438,6 +482,10 @@
         <span class="impact-tag retention">Retention</span>
         <span class="impact-tag activation">Activation</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">Directly answers rec 4. Requesting notifications at the moment the user picks a habit time — framed as the value they get ("We'll remind you at 8am") rather than a bare OS prompt — is what lifts opt-in rates, and an opted-in reminder is the most direct lever on 7-day retention available. Tagged Activation too because it lands during onboarding.</div>
+      </details>
       <div class="telos-comments" data-rec="6"></div>
     </div>
 
@@ -452,6 +500,10 @@
       <div class="impact-bar">
         <span class="impact-tag retention">Retention</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">Directly answers rec 2. Earned freezes protect the streak on a missed day without diluting its pull — the user still feels the stakes daily, but one slip no longer resets to zero and triggers abandonment. It targets the churn cliff precisely: keep the user in the loop through the miss and they rebuild the habit, protecting 7-day retention.</div>
+      </details>
       <div class="telos-comments" data-rec="7"></div>
     </div>
 
@@ -467,6 +519,10 @@
         <span class="impact-tag engagement">Engagement</span>
         <span class="impact-tag retention">Retention</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">Directly answers rec 3. Shown next to the streak rather than replacing it, "5 of 7 days" gives a user who broke a streak something they're still winning at, and it makes KR 2 (weekly active streaks) a visible target instead of a hidden metric. Pairing the two keeps the streak's daily urgency while adding a more forgiving week-level goal.</div>
+      </details>
       <div class="telos-comments" data-rec="8"></div>
     </div>
 
@@ -482,6 +538,10 @@
         <span class="impact-tag retention">Retention</span>
         <span class="impact-tag engagement">Engagement</span>
       </div>
+      <details class="how">
+        <summary>How did I get this?</summary>
+        <div class="how-body">Directly answers rec 5. Escalating the screen and firing a notification when habits remain and the day is ending turns the streak-at-risk moment into a completed check-in. Tying the copy to the specific streak being protected ("2 habits left to keep your streak") is what makes it convert — it moves both KRs at the highest-intent moment of the day.</div>
+      </details>
       <div class="telos-comments" data-rec="9"></div>
     </div>
   </div>

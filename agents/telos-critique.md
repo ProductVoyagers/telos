@@ -75,6 +75,8 @@ Read the critique template first and mirror its structure exactly. Sections:
 5. **Suggestions tied to the KRs** (blue) — numbered continuing from section 4 (enables `/telos-apply` to target by number); each actionable and specific, addressing a reconsider gap.
 6. **Footer** — screen names + today's date.
 
+**Progressive disclosure (layered explanation).** Every numbered item (sections 4 and 5) gets a collapsed "How did I get this?" block — a `<details class="how">` with a `<summary>How did I get this?</summary>` and a `<div class="how-body">` — placed right after the item's `impact-bar` and before its `telos-comments` div. Keep the headline reasoning in the visible `item-body`; put the *second layer* in the `how-body`: what on the screen led you here, the mechanism that ties it to the KR, and what you'd expect to move if it changed. One or two sentences. This lets a reader stay at the summary level or drill into the why — the card must read top-to-bottom without expanding anything.
+
 Writing style: specific (name exact UI elements), opinionated, explain the WHY tied to the KR, bold the key insight.
 
 Also generate **review.html** from the review template (the side-by-side board: screens left, critique right), wired to the same flow.

@@ -45,6 +45,17 @@ The registry bumps `currentVersion`, points the screen at the new file, regenera
 
 Ask if they want to re-run `/telos-review <flow> | KR: <same KR>` to see whether alignment improved.
 
+## Reverting (override / undo)
+
+Applying never overwrites — every version's file stays on disk and the manifest keeps the full `versions` history. If a new version turns out worse, point the screen back at an earlier one (nothing is deleted; you can move forward again later):
+
+```bash
+telos-registry revert-version --project "<project-slug>" --flow "<flow-slug>" \
+  --screen "<screen-slug>" --to-version <N>
+```
+
+Use this when the user says a change made a screen worse, or asks to go back to a previous version. The registry moves the live pointer, regenerates the walkthrough, and pushes (connected).
+
 ## Done
 
 Report: each screen's old→new version, the recommendations applied, new file paths, push status. Keep it short.

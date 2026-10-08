@@ -34,7 +34,7 @@ It writes `critique-card.html` + `review.html` and reports the alignment score +
 
 ## Step 4 — Eval (only if `--eval`)
 
-Delegate the critique content + KR to the **`telos-eval`** subagent in `single` mode. Report the confidence score. If it scores below 24/30, offer one retry (re-run the critique with feedback on the weakest dimension).
+Delegate to the **`telos-eval`** subagent in `single` mode, passing the critique content, the KR(s), **and the screen file paths from Step 2** (so the judge can open the screens and verify every reference, not just check the critique against itself). Report the confidence score, noting it reflects critique quality rather than design truth. If it scores below 24/30, offer one retry (re-run the critique with feedback on the weakest dimension).
 
 ## Step 5 — Record
 

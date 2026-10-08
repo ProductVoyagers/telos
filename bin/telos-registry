@@ -14,6 +14,7 @@ Subcommands:
   init                          scaffold the workspace (dirs, manifest, hub templates)
   add-screen   --project --flow --screen --file [--screen-name --note]
   add-version  --project --flow --screen --file [--applied-recs --note]
+  revert-version --project --flow --screen --to-version   point a screen back at an earlier version (override/undo)
   set-critique --project --flow [--alignment --verdict --kr --has-review]
   sync         [--message]      pull/commit/push current workspace state
   serve        [--port]         serve the workspace locally to view the hub
@@ -355,6 +356,25 @@ def mutate_add_version(cfg, project_slug, flow_slug, screen_slug, filename, appl
     return _m
 
 
+def mutate_revert_version(cfg, project_slug, flow_slug, screen_slug, target_version):
+    def _m(m):
+        flow = ensure_flow(m, cfg, project_slug, flow_slug)
+        screen = find_screen(flow, screen_slug)
+        if screen is None:
+            raise TelosError(f"screen '{screen_slug}' not found in flow '{flow_slug}'")
+        match = next((v for v in screen["versions"] if v["version"] == target_version), None)
+        if match is None:
+            have = ", ".join(str(v["version"]) for v in screen["versions"])
+            raise TelosError(
+                f"version {target_version} not found for '{screen_slug}' (have: {have})"
+            )
+        # no files are added or removed — every version file is kept on disk.
+        # revert only moves the live pointer, so nothing is ever overwritten.
+        screen["currentVersion"] = target_version
+        screen["file"] = match["file"]
+    return _m
+
+
 def mutate_set_critique(cfg, project_slug, flow_slug, alignment, verdict, kr, has_review):
     def _m(m):
         flow = ensure_flow(m, cfg, project_slug, flow_slug)
@@ -581,6 +601,16 @@ def cmd_add_version(cfg, args):
     info(f"registered new version of {project}/{flow}/{screen} -> {filename}")
 
 
+def cmd_revert_version(cfg, args):
+    project = slugify(args.project or cfg.get("defaultProject") or "my-product")
+    flow = slugify(args.flow)
+    screen = slugify(args.screen)
+    mutate = mutate_revert_version(cfg, project, flow, screen, args.to_version)
+    # no file payload — the target version's file already exists in the flow dir.
+    commit_change(cfg, mutate, [], f"{flow}: revert {screen} to v{args.to_version}")
+    info(f"reverted {project}/{flow}/{screen} -> v{args.to_version}")
+
+
 def cmd_set_critique(cfg, args):
     project = slugify(args.project or cfg.get("defaultProject") or "my-product")
     flow = slugify(args.flow)
@@ -660,6 +690,16 @@ def build_parser():
     sp.add_argument("--applied-recs")
     sp.add_argument("--note")
     sp.set_defaults(func=cmd_add_version)
+
+    sp = sub.add_parser(
+        "revert-version",
+        help="point a screen back at an earlier version (override/undo); keeps all versions",
+    )
+    sp.add_argument("--project")
+    sp.add_argument("--flow", required=True)
+    sp.add_argument("--screen", required=True)
+    sp.add_argument("--to-version", type=int, required=True)
+    sp.set_defaults(func=cmd_revert_version)
 
     sp = sub.add_parser("set-critique", help="record impact-review data on a flow")
     sp.add_argument("--project")
