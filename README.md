@@ -74,6 +74,48 @@ And because AI output needs to earn trust before it goes to leadership, `/telos-
 
 You opt into each rung when *you're* ready. Nothing pushes anywhere until you connect a repo.
 
+## Tuning the eval to your product
+
+`/telos-eval` grades how trustworthy a critique is. There are two ways to shape it to your world — one built for everyday use, one for teams that want to change the rubric itself.
+
+### 1. Add your own test cases (no code — this is the main lever)
+
+Suite mode runs the critic against cases *you* write, so you can check it stays sharp on flows that matter to you (and catch a prompt change that made it worse). Drop a file per case in your workspace:
+
+```
+<workspace>/evals/test-cases/<your-case>.md
+```
+
+Each case describes:
+
+- the **flow / screens** to critique,
+- the **KR(s)** to critique against,
+- **expected findings** — points a good critique should raise,
+- **anti-expectations** — things it should *not* say (generic UX filler, off-goal nitpicks),
+- an **expected alignment range** — e.g. 2–3 for a deliberately weak screen.
+
+Then run:
+
+```
+/telos-eval suite
+```
+
+It critiques each case, scores the critique, and prints a pass/fail table plus which expected findings were caught or missed. Results save to `<workspace>/evals/results/`. This needs no plugin changes — the cases are yours.
+
+### 2. Change the rubric (the six dimensions or the pass mark)
+
+The judge scores six dimensions (KR Relevance, Blind Spot Detection, Screen Reference Accuracy, Actionability, Impact Calibration, Sub-metric Accuracy), each 1–5, pass at **24/30**. These live in the judge's prompt at [`agents/telos-eval.md`](agents/telos-eval.md) — not in a settings file.
+
+To change them (e.g. add a "Accessibility impact" dimension, or raise the bar to 27/30):
+
+1. **Fork** this repo.
+2. Edit `agents/telos-eval.md` — change the dimension list, the 1/3/5 anchors, or the `Passing: 24/30` threshold. Keep the output format intact.
+3. Point your Telos marketplace at **your fork** (`/plugin marketplace add <you>/telos`) and install from it.
+
+Editing an *installed* copy directly isn't recommended — a plugin update overwrites it. Fork, so your rubric survives updates.
+
+> The deeper lesson, if you're teaching this: the **pattern** is the point. A good judge is a named artifact, an anchoring goal, 5–6 dimensions with 1/3/5 anchors, a pass mark, read-only access, and a capped retry. Telos is one instance of that pattern — build your own for your own workflows.
+
 ## Connecting to GitHub (optional)
 
 Telos is **local-first** — it works fully on your machine with no GitHub at all. "Connecting" just means pointing Telos at **a GitHub repo you own** so two things become possible: your hub turns into a **live, shareable website**, and a **squad can collaborate** in one place. You can stay local forever, or connect whenever you want by re-running `/telos-setup`.
