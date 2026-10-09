@@ -8,5 +8,14 @@
   },
   "homepage": "https://github.com/ProductVoyagers/telos",
   "license": "Apache-2.0",
-  "keywords": ["pm", "product", "design", "critique", "okr", "kr", "figma"]
+  "keywords": [
+    "pm",
+    "product",
+    "design",
+    "critique",
+    "okr",
+    "kr",
+    "figma"
+  ],
+  "icon": "./icon.png"
 }

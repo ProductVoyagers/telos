@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/assets/telos-owl.png" alt="Telos" width="96">
+
 # Telos
 
 **The PM toolkit where every screen is tied to a business goal.**
