@@ -86,10 +86,26 @@ Only offer this in connected mode (it needs a GitHub repo with Pages). Ask: *"Wa
 
 The discussion threads auto-create on first comment, one per recommendation (term `<project>/<flow>/rec-<N>`). The critique loop reads them back via `gh` GraphQL on the next run — see `telos-critique`.
 
-## Step 7 — Confirm
+## Step 7 — Start the hub and hand over the link
+
+Telos pages are **live pages that must be served** — opened as a file (`file://`) the hub can't load its data and shows an empty list. So setup brings the server up for the user and gives them a link; they never open an html file.
+
+Run the hub server in the **background** (so it keeps serving) and capture the URL it prints:
+
+```bash
+telos-registry serve --background
+```
+
+This prints `http://localhost:8765/` (reusing an already-running server if there is one). Give the user that link and be explicit:
+
+> *"Your hub is running at **http://localhost:8765** — open it in a browser and keep that tab. This is where you view everything (your hub, screens, critiques). Don't open the .html files directly; only this link works. After each Telos command, refresh this tab."*
+
+The hub has **About** and **How It Works** in its top nav, and your projects below.
+
+## Step 8 — Confirm
 
 Tell the user setup is done and what's next:
-- Local: "Run `/telos-napkin` to make your first screen, or just talk to `/telos` (ask it to open your hub anytime)."
+- Local: "Your hub is live at http://localhost:8765. Run `/telos-napkin` to make your first screen, then refresh the hub to see it. Or just talk to `/telos`."
 - Connected: also give them the Pages URL and remind them to enable GitHub Pages on the repo if they haven't. If they connected comments, note that threads appear under each recommendation once published.
 
 ## Done

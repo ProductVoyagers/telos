@@ -58,4 +58,7 @@ Use this when the user says a change made a screen worse, or asks to go back to 
 
 ## Done
 
-Report: each screen's old→new version, the recommendations applied, new file paths, push status. Keep it short.
+Make sure the hub is serving (`telos-registry serve --background` — reuses a running one) so the user views versions as pages, not files. Report the **localhost link**, never a file path:
+- new screen version: `http://localhost:8765/projects/<project>/flows/<flow>/<screen>-v<N>.html`
+
+Also report each screen's old→new version, the recommendations applied, and push status. Tell them to refresh their hub tab. Keep it short.

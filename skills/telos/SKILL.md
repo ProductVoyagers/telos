@@ -34,11 +34,11 @@ Whenever the user wants a critique or a screen tied to outcomes, make sure you h
 
 ## Open the hub
 
-When they want to see their work, run the local server and open it:
+When they want to see their work, start the server in the background and give them the link:
 ```bash
-telos-registry serve &
+telos-registry serve --background
 ```
-then open `http://localhost:8765/` in their browser. (In connected mode you can also just give them their published Pages URL from config `repo.pagesUrl`.) Tell them what they're looking at.
+It prints `http://localhost:8765/` (reusing a running server if there is one). Give them that link and tell them to keep the tab open and refresh it after each command. **Never hand them an html file path** — opened as a file the hub can't load its data. (In connected mode you can also give them their published Pages URL from config `repo.pagesUrl`.) Tell them what they're looking at: their projects, each screen, each tied to its goal.
 
 ## How you carry yourself
 

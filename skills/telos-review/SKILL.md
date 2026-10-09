@@ -46,4 +46,8 @@ This updates the manifest (the hub shows the alignment dots + KR) and pushes in 
 
 ## Done
 
-Report: critique-card path, review-board path, alignment score, recommendation count (for `/telos-apply`), and confidence (if `--eval`). Keep it short.
+Make sure the hub is serving (`telos-registry serve --background` — it reuses a running one) so the user views the result as a page, not a file. Report the **localhost links**, never file paths:
+- critique card: `http://localhost:8765/projects/<project>/flows/<flow>/critique-card.html`
+- review board: `http://localhost:8765/projects/<project>/flows/<flow>/review.html`
+
+Plus the alignment score, recommendation count (for `/telos-apply`), and confidence (if `--eval`). Tell them to refresh their hub tab. Keep it short.

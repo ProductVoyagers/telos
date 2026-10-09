@@ -53,4 +53,8 @@ If the user supplied a KR, run `/telos-review` behavior: scan the flow's screens
 
 ## Done
 
-Report: screen file (with version), manifest/walkthrough updated, push status (connected) or "saved locally", and the critique-card path + alignment if a KR was given. Remind them they can ask `/telos` to open their hub. Keep it short.
+Make sure the hub is serving (`telos-registry serve --background` — reuses a running one) so the user views the screen as a page, not a file. Report the **localhost link**, never a file path:
+- screen: `http://localhost:8765/projects/<project>/flows/<flow>/<screen>-v<N>.html`
+- or point them at the hub: `http://localhost:8765/` → open the project.
+
+Also report version, push status (connected) or "saved locally", and the critique-card link + alignment if a KR was given. Tell them to refresh their hub tab. Keep it short.

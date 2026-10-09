@@ -400,6 +400,7 @@ def mutate_set_critique(cfg, project_slug, flow_slug, alignment, verdict, kr, ha
 TEMPLATE_FILES = {
     "index.html": "index.html",
     "how-it-works.html": "how-it-works.html",
+    "about.html": "about.html",
     "comments.css": "comments.css",
 }
 
@@ -633,12 +634,39 @@ def cmd_sync(cfg, args):
     info("synced." + (f" Hub: {pages}" if pages else ""))
 
 
+def _port_open(port):
+    import socket
+    with socket.socket() as s:
+        s.settimeout(0.3)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
 def cmd_serve(cfg, args):
     ws = workspace_path(cfg)
     if not ws.exists():
         raise TelosError(f"workspace {ws} does not exist. Run /telos-setup first.")
     port = args.port
-    info(f"serving {ws} at http://localhost:{port}/  (Ctrl-C to stop)")
+    url = f"http://localhost:{port}/"
+    if getattr(args, "background", False):
+        # Start a detached server (or reuse one already on this port), then
+        # return immediately with the URL. This is how skills bring the hub up
+        # so they can hand the user a link instead of a file path.
+        if not _port_open(port):
+            import time
+            subprocess.Popen(
+                [sys.executable, "-m", "http.server", str(port)],
+                cwd=str(ws),
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            for _ in range(20):
+                if _port_open(port):
+                    break
+                time.sleep(0.1)
+        info(f"hub is running — open {url}")
+        print(url)
+        return
+    info(f"serving {ws} at {url}  (Ctrl-C to stop)")
     os.chdir(ws)
     subprocess.run([sys.executable, "-m", "http.server", str(port)])
 
@@ -715,6 +743,8 @@ def build_parser():
     sp.set_defaults(func=cmd_sync)
 
     sp = sub.add_parser("serve", help="serve the workspace locally")
+    sp.add_argument("-b", "--background", action="store_true",
+                    help="start a detached server and print the URL (don't block)")
     sp.add_argument("--port", type=int, default=8765)
     sp.set_defaults(func=cmd_serve)
 
