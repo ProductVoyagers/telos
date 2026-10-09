@@ -145,10 +145,4 @@ Created by **[ProductVoyagers](https://www.productvoyagers.com)** · for PMs bui
 Telos is part of **ProductVoyagers** — the reads, ideas, and tools for the AI-native PM.
 Read the essays at **[productvoyagers.com](https://www.productvoyagers.com)** · code at **[GitHub](https://github.com/ProductVoyagers)**
 
-<br>
-
-<img src="docs/assets/rituals-pm.png" alt="rituals.pm" height="52">
-
-Taught in the **[rituals.pm](https://rituals.pm)** AI PM Builder — used by product people from teams across delivery, mobility, and fintech.
-
 </div>
