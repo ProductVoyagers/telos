@@ -70,6 +70,9 @@ Read the critique template first and mirror its structure exactly. Sections:
 
 1. **KR header** (dark) — KR label + statement(s), each KR tagged + colored; brief model description; flow tag + screen count.
 2. **Alignment score** — amber filled dots (1-5) + verdict (1-2 weak, 3 partial, 4 strong, 5 full).
+   - Right after the alignment section, include the **eval-confidence placeholder** exactly, in BOTH the critique card and the review board:
+     `<!--TELOS_EVAL_START--><div style="padding:14px 24px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;">Critique confidence not scored yet — run <code>/telos-review … --eval</code> to grade this critique's trustworthiness.</div><!--TELOS_EVAL_END-->`
+     Leave it as-is — the skill stamps the real confidence score between these markers after the judge runs. Do not fill it yourself (you don't score your own critique).
 3. **What serves the KRs** (green) — each item: insight title, explanation, screen reference, impact tags (whatever sub-metrics fit the product — e.g. Retention, Engagement, Activation, Conversion). Every point references a specific screen or "Flow-level".
 4. **What to reconsider** (amber) — numbered from 1, each: issue title, explanation, screen ref, impact level (`HIGH`/`MEDIUM`) + tags. HIGH items first.
 5. **Suggestions tied to the KRs** (blue) — numbered continuing from section 4 (enables `/telos-apply` to target by number); each actionable and specific, addressing a reconsider gap.

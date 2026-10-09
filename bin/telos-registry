@@ -393,6 +393,71 @@ def mutate_set_critique(cfg, project_slug, flow_slug, alignment, verdict, kr, ha
     return _m
 
 
+# The six critique-quality dimensions the judge scores (key -> display label).
+EVAL_DIMS = [
+    ("kr_relevance", "KR Relevance"),
+    ("blind_spot", "Blind Spot Detection"),
+    ("screen_ref", "Screen Reference Accuracy"),
+    ("actionability", "Actionability"),
+    ("impact_calibration", "Impact Calibration"),
+    ("sub_metric", "Sub-metric Accuracy"),
+]
+
+
+def _eval_html(scores):
+    """Build the on-page confidence block from the six dimension scores."""
+    total = sum(scores.values())
+    conf = round(total / 30 * 100)
+    badge = "#2e7d32" if conf >= 80 else ("#f5a623" if conf >= 60 else "#d32f2f")
+    verdict = "PASS" if total >= 24 else "FAIL"
+    rows = ""
+    for key, label in EVAL_DIMS:
+        v = scores[key]
+        color = "#d32f2f" if v < 3 else "#1a1a1a"  # flag any dimension below 3
+        rows += (f'<span>{label}</span>'
+                 f'<span style="font-weight:600;color:{color};">{v}/5</span>')
+    return (
+        '<div style="padding:16px 24px;border-bottom:1px solid #f0f0f0;">'
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+        '<span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#999;">Critique Confidence</span>'
+        f'<span style="display:inline-flex;align-items:center;gap:8px;">'
+        f'<span style="font-size:13px;color:#666;">{total}/30 &middot; {verdict}</span>'
+        f'<span style="background:{badge};color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">{conf}%</span>'
+        '</span></div>'
+        f'<div style="display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:12px;color:#555;">{rows}</div>'
+        '<div style="margin-top:10px;font-size:11px;color:#999;">This scores the quality of the critique, not whether the design is right.</div>'
+        '</div>'
+    )
+
+
+def _inject_eval(path, html):
+    """Replace the content between the eval markers in an HTML file. Returns True if changed."""
+    if not path.exists():
+        return False
+    s = path.read_text()
+    new = re.sub(
+        r"<!--TELOS_EVAL_START-->.*?<!--TELOS_EVAL_END-->",
+        "<!--TELOS_EVAL_START-->" + html + "<!--TELOS_EVAL_END-->",
+        s, flags=re.S,
+    )
+    if new != s:
+        path.write_text(new)
+        return True
+    return False
+
+
+def mutate_set_eval(cfg, project_slug, flow_slug, scores, total, conf, verdict):
+    def _m(m):
+        flow = ensure_flow(m, cfg, project_slug, flow_slug)
+        ir = flow.get("impactReview") or {}
+        ir["eval"] = {
+            "dims": scores, "total": total, "confidence": conf,
+            "verdict": verdict, "date": date.today().isoformat(),
+        }
+        flow["impactReview"] = ir
+    return _m
+
+
 # ---------------------------------------------------------------- scaffolding
 
 # Workspace-root files copied once at init. (project-index is copied per project;
@@ -624,6 +689,25 @@ def cmd_set_critique(cfg, args):
     info(f"recorded impact review for {project}/{flow}")
 
 
+def cmd_set_eval(cfg, args):
+    project = slugify(args.project or cfg.get("defaultProject") or "my-product")
+    flow = slugify(args.flow)
+    scores = {k: getattr(args, k) for k, _ in EVAL_DIMS}
+    if any(v is None for v in scores.values()):
+        raise TelosError("all six dimension scores are required")
+    total = sum(scores.values())
+    conf = round(total / 30 * 100)
+    verdict = "PASS" if total >= 24 else "FAIL"
+    html_block = _eval_html(scores)
+    fdir = workspace_path(cfg) / "projects" / project / "flows" / flow
+    touched = [n for n in ("critique-card.html", "review.html") if _inject_eval(fdir / n, html_block)]
+    mutate = mutate_set_eval(cfg, project, flow, scores, total, conf, verdict)
+    extra = [str(fdir / n) for n in touched]
+    commit_change(cfg, mutate, extra, f"{flow}: eval {total}/30 ({conf}%)")
+    info(f"recorded eval {total}/30 ({conf}%, {verdict}) for {project}/{flow}"
+         + (f"; stamped {', '.join(touched)}" if touched else "; no pages had eval markers"))
+
+
 def cmd_sync(cfg, args):
     if not is_github(cfg):
         info("sync='local' — nothing to push. Connect a repo with /telos-setup to share.")
@@ -737,6 +821,14 @@ def build_parser():
     sp.add_argument("--kr")
     sp.add_argument("--has-review", action="store_true")
     sp.set_defaults(func=cmd_set_critique)
+
+    sp = sub.add_parser("set-eval", help="record the critique-quality eval and stamp the confidence badge on the pages")
+    sp.add_argument("--project")
+    sp.add_argument("--flow", required=True)
+    for _k, _label in EVAL_DIMS:
+        sp.add_argument(f"--{_k.replace('_', '-')}", type=int, required=True, dest=_k,
+                        help=f"{_label} score 1-5")
+    sp.set_defaults(func=cmd_set_eval)
 
     sp = sub.add_parser("sync", help="pull/commit/push the workspace")
     sp.add_argument("--message")

@@ -34,7 +34,19 @@ It writes `critique-card.html` + `review.html` and reports the alignment score +
 
 ## Step 4 — Eval (only if `--eval`)
 
-Delegate to the **`telos-eval`** subagent in `single` mode, passing the critique content, the KR(s), **and the screen file paths from Step 2** (so the judge can open the screens and verify every reference, not just check the critique against itself). Report the confidence score, noting it reflects critique quality rather than design truth. If it scores below 24/30, offer one retry (re-run the critique with feedback on the weakest dimension).
+Delegate to the **`telos-eval`** subagent in `single` mode, passing the critique content, the KR(s), **and the screen file paths from Step 2** (so the judge can open the screens and verify every reference, not just check the critique against itself).
+
+Then **stamp the score onto the pages** so it's visible and persistent (not just in chat). Take the judge's six dimension scores and run:
+
+```bash
+telos-registry set-eval --project "<project-slug>" --flow "<flow-slug>" \
+  --kr-relevance <1-5> --blind-spot <1-5> --screen-ref <1-5> \
+  --actionability <1-5> --impact-calibration <1-5> --sub-metric <1-5>
+```
+
+This writes the confidence badge + 6-dimension breakdown into the critique card and review board (between their eval markers) and records it in the manifest. The judge stays read-only — the skill does the writing.
+
+Report the confidence score, noting it reflects critique quality, not design truth. If it scores below 24/30, offer one retry (re-run the critique with feedback on the weakest dimension).
 
 ## Step 5 — Record
 
